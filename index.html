@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelodyFlow | Material 3</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    
+    <style>
+        :root {
+            --primary: #6750A4;
+            --surface: #F7F2FA;
+            --background: #FEF7FF;
+            --outline: #79747E;
+            --success: #B6F2AF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #1C1B1F;
+        }
+
+        /* Material 3 Card Style */
+        .container {
+            background-color: var(--surface);
+            padding: 40px;
+            border-radius: 28px; /* Expressive M3 Radius */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #EADDFF;
+            transition: all 0.3s ease;
+        }
+
+        h1 { color: var(--primary); margin-top: 0; font-weight: 400; font-size: 2rem; }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: #E6E1E5;
+        }
+
+        .status-ready { background: #D0BCFF; color: #381E72; }
+
+        /* Difficulty Selector */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            border: 1px solid var(--outline);
+            background: transparent;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        #notation {
+            background: white;
+            border-radius: 16px;
+            margin: 20px 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .feedback {
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 1.5em;
+            color: var(--primary);
+        }
+
+        /* Flash animation for correct notes */
+        .correct {
+            animation: success-flash 0.4s ease;
+        }
+
+        @keyframes success-flash {
+            0% { background-color: var(--surface); }
+            50% { background-color: var(--success); transform: scale(1.02); }
+            100% { background-color: var(--surface); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app-card">
+    <h1>MelodyFlow</h1>
+    <div id="status" class="status-chip">Waiting for Roland FP-30...</div>
+
+    <div class="btn-group">
+        <button id="btn-Beginner" class="active" onclick="setDiff('Beginner')">Beginner</button>
+        <button id="btn-Intermediate" onclick="setDiff('Intermediate')">Intermediate</button>
+        <button id="btn-Advanced" onclick="setDiff('Advanced')">Advanced</button>
+    </div>
+
+    <div id="notation"></div>
+
+    <div class="feedback" id="feedback-text">Play the note on the staff</div>
+    <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">Last MIDI Note: <span id="midi-val">--</span></div>
+</div>
+
+<script>
+    const VF = Vex.Flow;
+    let difficulty = 'Beginner';
+    let targetNote = 'c/4';
+    const levels = {
+        'Beginner': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'],
+        'Intermediate': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'],
+        'Advanced': ['g/3', 'a/3', 'b/3', 'c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5', 'd/5', 'e/5']
+    };
+
+    // Initialize MIDI
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+        document.getElementById('status').innerText = "Browser doesn't support MIDI";
+    }
+
+    function onMIDISuccess(midiAccess) {
+        document.getElementById('status').innerText = "Roland FP-30 Connected";
+        document.getElementById('status').classList.add('status-ready');
+        const inputs = midiAccess.inputs.values();
+        for (let input of inputs) {
+            input.onmidimessage = handleMidi;
+        }
+    }
+
+    function onMIDIFailure() {
+        document.getElementById('status').innerText = "MIDI Access Denied";
+    }
+
+    function handleMidi(message) {
+        const [command, note, velocity] = message.data;
+        if (command === 144 && velocity > 0) {
+            const played = midiToVex(note);
+            document.getElementById('midi-val').innerText = played.toUpperCase().replace('/', '');
+            
+            if (played === targetNote) {
+                triggerSuccess();
+                pickNewNote();
+            }
+        }
+    }
+
+    function midiToVex(midi) {
+        const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+        const octave = Math.floor(midi / 12) - 1;
+        return `${names[midi % 12]}/${octave}`;
+    }
+
+    function setDiff(lvl) {
+        difficulty = lvl;
+        document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + lvl).classList.add('active');
+        pickNewNote();
+    }
+
+    function pickNewNote() {
+        const pool = levels[difficulty];
+        targetNote = pool[Math.floor(Math.random() * pool.length)];
+        renderNotation();
+    }
+
+    function triggerSuccess() {
+        const card = document.getElementById('app-card');
+        card.classList.remove('correct');
+        void card.offsetWidth; // Trigger reflow
+        card.classList.add('correct');
+        document.getElementById('feedback-text').innerText = "Correct! 🎉";
+        setTimeout(() => {
+            document.getElementById('feedback-text').innerText = "Play the note on the staff";
+        }, 600);
+    }
+
+    function renderNotation() {
+        const div = document.getElementById("notation");
+        div.innerHTML = '';
+        
+        const renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+        renderer.resize(200, 150);
+        const context = renderer.getContext();
+        
+        const stave = new VF.Stave(10, 20, 180);
+        stave.addClef("treble").setContext(context).draw();
+
+        const note = new VF.StaveNote({ keys: [targetNote], duration: "q" });
+        if (targetNote.includes('#')) note.addModifier(new VF.Accidental("#"));
+        
+        // Material 3 Purple Color
+        note.setStyle({ fillStyle: "#6750A4", strokeStyle: "#6750A4" });
+
+        const voice = new VF.Voice({num_beats: 1,  beat_value: 4});
+        voice.addTickables([note]);
+
+        new VF.Formatter().joinVoices([voice]).format([voice], 100);
+        voice.draw(context, stave);
+    }
+
+    // Initial Draw
+    renderNotation();
+
+</script>
+</body>
+</html>
