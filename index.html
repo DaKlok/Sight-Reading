@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Flowkey Sight Reading v3.1.0</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    
+    <style>
+        :root {
+            --primary: #6750A4;       /* Deep Violet */
+            --surface: #F7F2FA;       /* Soft Lavender Surface */
+            --background: #FEF7FF;    /* Near-White Background */
+            --outline: #79747E;
+            --target-note: #00A96B;   /* Bright Green for Target */
+            --default-note: #6750A4;  /* Default Note Color */
+            --correct-flash: #EADDFF; /* Light Purple Flash (Success) */
+            --wrong-flash: #F2B8B5;   /* Light Red/Error (Wrong Note) */
+            --text-color: #1C1B1F;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        /* Material 3 Card Style */
+        .container {
+            background-color: var(--surface);
+            padding: 40px;
+            border-radius: 28px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 800px;
+            border: 1px solid #EADDFF;
+            transition: background-color 0.2s ease;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 { color: var(--primary); margin: 0; font-weight: 400; font-size: 2rem; }
+        .version-tag { color: var(--outline); font-size: 0.9rem; margin-top: 5px;}
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: #E6E1E5;
+        }
+
+        .status-ready { background: #D0BCFF; color: #381E72; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            border: 1px solid var(--outline);
+            background: transparent;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Scrolling Notation Area */
+        #notation-window {
+            overflow: hidden;
+            width: 600px; /* Viewport width */
+            height: 150px;
+            margin: 20px auto;
+            border-radius: 16px;
+            border: 2px solid var(--primary);
+            position: relative;
+        }
+        
+        #notation-scroller {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            display: flex; 
+            gap: 0; 
+            
+            transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1.0); 
+        }
+        
+        .vf-measure-container {
+            padding: 0;
+            margin: 0;
+            display: flex;
+        }
+
+        .feedback {
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 1.5em;
+            color: var(--primary);
+        }
+
+        /* Animation Classes */
+        .correct-bg {
+            animation: success-flash 0.3s ease;
+        }
+        @keyframes success-flash {
+            0% { background-color: var(--surface); }
+            50% { background-color: var(--correct-flash); transform: scale(1.01); }
+            100% { background-color: var(--surface); }
+        }
+
+        .wrong-flash {
+            animation: wrong-flash-anim 0.2s ease-out;
+        }
+        @keyframes wrong-flash-anim {
+            0% { background-color: var(--surface); transform: scale(1); }
+            50% { background-color: var(--wrong-flash); transform: scale(0.99); }
+            100% { background-color: var(--surface); transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app-card">
+    <div class="header-content">
+        <h1>MelodyFlow</h1>
+        <span class="version-tag">v3.1.0</span>
+    </div>
+    <div id="status" class="status-chip">Waiting for Roland FP-30...</div>
+
+    <div class="btn-group">
+        <button id="btn-Beginner" class="active" onclick="setDiff('Beginner')">Beginner</button>
+        <button id="btn-Intermediate" onclick="setDiff('Intermediate')">Intermediate</button>
+        <button id="btn-Advanced" onclick="setDiff('Advanced')">Advanced</button>
+    </div>
+
+    <div id="notation-window">
+        <div id="notation-scroller">
+            </div>
+    </div>
+
+    <div class="feedback" id="feedback-text">Play the highlighted note</div>
+    <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">
+        Notes Completed: <span id="notes-completed">0</span>
+    </div>
+</div>
+
+<script>
+    const VF = Vex.Flow;
+    
+    // --- Global State ---
+    let difficulty = 'Beginner';
+    let currentNoteIndex = 0;
+    let notesCompleted = 0;
+    let sequence = []; 
+    let scrollerOffset = 0;
+    let measureIndex = 0; 
+    let noteWidths = []; 
+
+    const baseMeasureWidth = 200; 
+    const notesPerMeasure = 4;
+    const firstMeasureExtraWidth = 50; 
+    const clefTimeSignatureOffset = 40; 
+
+    const levels = {
+        'Beginner': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'],
+        'Intermediate': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'],
+        'Advanced': ['g/3', 'a/3', 'b/3', 'c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5', 'd/5', 'e/5']
+    };
+
+    // --- MIDI Logic ---
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+        document.getElementById('status').innerText = "Browser doesn't support MIDI";
+    }
+
+    function onMIDISuccess(midiAccess) {
+        document.getElementById('status').innerText = "Roland FP-30 Connected";
+        document.getElementById('status').classList.add('status-ready');
+        const inputs = midiAccess.inputs.values();
+        for (let input of inputs) {
+            input.onmidimessage = handleMidi;
+        }
+        startExercise(3); 
+    }
+
+    function onMIDIFailure() {
+        document.getElementById('status').innerText = "MIDI Access Denied";
+    }
+
+    function handleMidi(message) {
+        const [command, note, velocity] = message.data;
+        if (command === 144 && velocity > 0) { // Note On
+            const played = midiToVex(note);
+            
+            if (currentNoteIndex < sequence.length) {
+                if (played === sequence[currentNoteIndex]) {
+                    triggerSuccess();
+                    advanceNote();
+                } else {
+                    triggerWrongNote();
+                }
+            }
+        }
+    }
+
+    function midiToVex(midi) {
+        const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+        const octave = Math.floor(midi / 12) - 1;
+        return `${names[midi % 12]}/${octave}`;
+    }
+
+    // --- Exercise Setup ---
+    function generateNote(lvl) {
+        const pool = levels[lvl];
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function startExercise(initialMeasures = 3) {
+        notesCompleted = 0;
+        currentNoteIndex = 0;
+        scrollerOffset = 0;
+        measureIndex = 0;
+        sequence = [];
+        noteWidths = [];
+        
+        document.getElementById('notes-completed').innerText = notesCompleted;
+        document.getElementById("notation-scroller").innerHTML = '';
+        document.getElementById("notation-scroller").style.transform = 'translateX(0px)';
+        
+        for(let i = 0; i < initialMeasures; i++) {
+            renderNextMeasure(); 
+        }
+        highlightTargetNote();
+    }
+
+    function setDiff(lvl) {
+        difficulty = lvl;
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + lvl).classList.add('active');
+        startExercise(3);
+    }
+
+    // --- Scrolling and Animation ---
+    function advanceNote() {
+        // 1. Calculate and apply scroll
+        const widthToShift = noteWidths[currentNoteIndex];
+        scrollerOffset += widthToShift;
+        const scroller = document.getElementById('notation-scroller');
+        scroller.style.transform = `translateX(-${scrollerOffset}px)`;
+        
+        // 2. Update stats and index
+        currentNoteIndex++;
+        notesCompleted++;
+        document.getElementById('notes-completed').innerText = notesCompleted;
+
+        // 3. Check for measure boundary to render new content
+        if (currentNoteIndex % notesPerMeasure === 0) {
+            renderNextMeasure();
+        }
+        
+        // 4. Highlight next note after a short delay (for animation sync)
+        setTimeout(highlightTargetNote, 100); 
+    }
+    
+    function triggerSuccess() {
+        const card = document.getElementById('app-card');
+        card.classList.remove('correct-bg', 'wrong-flash');
+        void card.offsetWidth; 
+        card.classList.add('correct-bg');
+        document.getElementById('feedback-text').innerText = "Nice! 👌";
+        setTimeout(() => {
+            document.getElementById('feedback-text').innerText = "Play the highlighted note";
+        }, 300);
+    }
+
+    function triggerWrongNote() {
+        const card = document.getElementById('app-card');
+        card.classList.remove('correct-bg', 'wrong-flash');
+        void card.offsetWidth; 
+        card.classList.add('wrong-flash');
+        document.getElementById('feedback-text').innerText = "Wrong Note! Try again. ❌";
+        setTimeout(() => {
+            document.getElementById('feedback-text').innerText = "Play the highlighted note";
+        }, 300);
+    }
+
+    // --- VexFlow Rendering ---
+    
+    function renderNextMeasure() {
+        const scroller = document.getElementById("notation-scroller");
+        const divId = `measure-${measureIndex}`;
+        
+        const measureDiv = document.createElement('div');
+        measureDiv.id = divId;
+        measureDiv.className = 'vf-measure-container';
+        scroller.appendChild(measureDiv);
+
+        const newMeasureKeys = [];
+        for (let i = 0; i < notesPerMeasure; i++) {
+            newMeasureKeys.push(generateNote(difficulty));
+        }
+        sequence.push(...newMeasureKeys);
+        
+        const isFirstBar = measureIndex === 0;
+        
+        const VF = Vex.Flow;
+        const renderer = new VF.Renderer(measureDiv, VF.Renderer.Backends.SVG);
+        
+        const width = isFirstBar ? baseMeasureWidth + firstMeasureExtraWidth : baseMeasureWidth; 
+        renderer.resize(width, 150);
+        const context = renderer.getContext();
+        context.clearRect(0, 0, width, 150);
+
+        const staveXStart = isFirstBar ? 10 : 0; 
+        const stave = new VF.Stave(staveXStart, 20, width - staveXStart);
+        
+        if (isFirstBar) {
+            stave.addClef("treble").addTimeSignature("4/4");
+        } else {
+            stave.setBegBarType(VF.Barline.type.NONE);
+        }
+        
+        stave.setEndBarType(VF.Barline.type.NONE);
+        
+        stave.setContext(context).draw();
+
+        const notes = [];
+        const startIndex = sequence.length - notesPerMeasure;
+
+        newMeasureKeys.forEach((key, i) => {
+            const note = new VF.StaveNote({ keys: [key], duration: "q", clef: "treble" });
+            note.setAttribute('data-note-index', startIndex + i);
+            if (key.includes('#')) note.addModifier(new VF.Accidental("#"));
+            notes.push(note);
+        });
+
+        const voice = new VF.Voice({num_beats: 4, beat_value: 4}).addTickables(notes);
+        
+        const formattingSpace = isFirstBar ? width - clefTimeSignatureOffset : width;
+        new VF.Formatter().joinVoices([voice]).format([voice], formattingSpace);
+        voice.draw(context, stave);
+        
+        // --- Calculate Note Widths for Scrolling ---
+        notes.forEach(note => {
+            // Get the width of the note *including* the space following it
+            noteWidths.push(note.getMetrics().width);
+        });
+        
+        const svgElement = measureDiv.querySelector('svg');
+        if (svgElement) {
+            measureDiv.style.width = `${svgElement.getAttribute('width')}px`;
+        }
+
+        measureIndex++;
+    }
+    
+    // Logic to visually highlight the current target note
+    function highlightTargetNote() {
+        // Step 1: Clear ALL previous highlights
+        document.querySelectorAll('.vf-measure-container g path').forEach(path => {
+            path.style.fill = var2hex('--default-note'); 
+            path.style.transition = 'fill 0.1s ease'; 
+        });
+        
+        // Step 2: Highlight ONLY the target note
+        const targetElement = document.querySelector(`[data-note-index="${currentNoteIndex}"]`);
+        if (targetElement) {
+            const noteHeads = targetElement.querySelectorAll('path');
+            noteHeads.forEach(path => {
+                path.style.fill = var2hex('--target-note'); 
+            });
+        }
+    }
+    
+    // Helper to get CSS variable value
+    function var2hex(variable) {
+        return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    }
+</script>
+</body>
+</html>
