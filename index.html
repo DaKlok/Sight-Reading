@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite Flowkey Sight Reading</title>
+    <title>Infinite Flowkey Sight Reading v3.0.0</title>
     
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     
@@ -16,6 +16,7 @@
             --target-note: #00A96B;   /* Bright Green for Target */
             --correct-flash: #EADDFF; /* Light Purple Flash (Success) */
             --wrong-flash: #F2B8B5;   /* Light Red/Error (Wrong Note) */
+            --text-color: #1C1B1F;
         }
 
         body {
@@ -26,7 +27,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            color: #1C1B1F;
+            color: var(--text-color);
             overflow: hidden;
         }
 
@@ -43,7 +44,15 @@
             transition: background-color 0.2s ease;
         }
 
-        h1 { color: var(--primary); margin-top: 0; font-weight: 400; font-size: 2rem; }
+        .header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 { color: var(--primary); margin: 0; font-weight: 400; font-size: 2rem; }
+        .version-tag { color: var(--outline); font-size: 0.9rem; margin-top: 5px;}
 
         .status-chip {
             display: inline-block;
@@ -96,8 +105,17 @@
             top: 0;
             height: 100%;
             display: flex; 
-            /* The key to smooth flow */
+            /* REMOVE GAP BETWEEN MEASURES */
+            gap: 0; 
+            
             transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1.0); 
+        }
+        
+        /* Ensure the individual measure containers have no margin */
+        .vf-measure-container {
+            padding: 0;
+            margin: 0;
+            display: flex;
         }
 
         .feedback {
@@ -117,7 +135,6 @@
             100% { background-color: var(--surface); }
         }
 
-        /* Wrong Note Animation */
         .wrong-flash {
             animation: wrong-flash-anim 0.2s ease-out;
         }
@@ -131,7 +148,10 @@
 <body>
 
 <div class="container" id="app-card">
-    <h1>MelodyFlow</h1>
+    <div class="header-content">
+        <h1>MelodyFlow</h1>
+        <span class="version-tag">v3.0.0</span>
+    </div>
     <div id="status" class="status-chip">Waiting for Roland FP-30...</div>
 
     <div class="btn-group">
@@ -158,13 +178,15 @@
     let difficulty = 'Beginner';
     let currentNoteIndex = 0;
     let notesCompleted = 0;
-    let sequence = []; // Holds the full sequence of note keys
+    let sequence = []; 
     let scrollerOffset = 0;
-    let measureIndex = 0; // Tracks the total number of measures rendered
-    let noteWidths = []; // Stores the calculated width of each note for precise scrolling
+    let measureIndex = 0; 
+    let noteWidths = []; 
 
-    const baseMeasureWidth = 200; // Base width for a single 4/4 measure
+    const baseMeasureWidth = 200; 
     const notesPerMeasure = 4;
+    const firstMeasureExtraWidth = 50; // Extra width for clef/time signature
+    const clefTimeSignatureOffset = 40; // X offset for drawing the music after clef/time sig
 
     const levels = {
         'Beginner': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'],
@@ -186,7 +208,7 @@
         for (let input of inputs) {
             input.onmidimessage = handleMidi;
         }
-        startExercise(3); // Start with 3 measures on screen
+        startExercise(3); 
     }
 
     function onMIDIFailure() {
@@ -233,9 +255,8 @@
         document.getElementById("notation-scroller").innerHTML = '';
         document.getElementById("notation-scroller").style.transform = 'translateX(0px)';
         
-        // Render initial measures
         for(let i = 0; i < initialMeasures; i++) {
-            renderNextMeasure(false); 
+            renderNextMeasure(); 
         }
         highlightTargetNote();
     }
@@ -262,7 +283,7 @@
 
         // 3. Check for measure boundary to render new content
         if (currentNoteIndex % notesPerMeasure === 0) {
-            renderNextMeasure(true);
+            renderNextMeasure();
         }
         
         // 4. Highlight next note
@@ -293,15 +314,15 @@
 
     // --- VexFlow Rendering ---
     
-    function renderNextMeasure(isContinuation) {
+    function renderNextMeasure() {
         const scroller = document.getElementById("notation-scroller");
         const divId = `measure-${measureIndex}`;
         
         const measureDiv = document.createElement('div');
         measureDiv.id = divId;
+        measureDiv.className = 'vf-measure-container';
         scroller.appendChild(measureDiv);
 
-        // Generate notes for the new measure
         const newMeasureKeys = [];
         for (let i = 0; i < notesPerMeasure; i++) {
             newMeasureKeys.push(generateNote(difficulty));
@@ -315,19 +336,27 @@
         const renderer = new VF.Renderer(measureDiv, VF.Renderer.Backends.SVG);
         
         // Determine width: first bar needs extra space for clef/time sig
-        const width = isFirstBar ? baseMeasureWidth + 50 : baseMeasureWidth; 
+        const width = isFirstBar ? baseMeasureWidth + firstMeasureExtraWidth : baseMeasureWidth; 
         renderer.resize(width, 150);
         const context = renderer.getContext();
         context.clearRect(0, 0, width, 150);
 
-        const xPos = isFirstBar ? 10 : 0;
-        const stave = new VF.Stave(xPos, 20, width - 10);
+        // Crucial for alignment:
+        // First bar starts at X=10 to allow clef/key to draw.
+        // Subsequent bars start at X=0 and rely on the previous bar's line.
+        const staveXStart = isFirstBar ? 10 : 0; 
+        const stave = new VF.Stave(staveXStart, 20, width - staveXStart);
         
         if (isFirstBar) {
             stave.addClef("treble").addTimeSignature("4/4");
         } else {
-            stave.setBegBarType(VF.Barline.type.SINGLE);
+            // Remove the barline from the start of every subsequent stave
+            stave.setBegBarType(VF.Barline.type.NONE);
         }
+        
+        // Remove the barline from the end of every stave for continuous flow
+        stave.setEndBarType(VF.Barline.type.NONE);
+        
         stave.setContext(context).draw();
 
         const notes = [];
@@ -342,18 +371,18 @@
 
         const voice = new VF.Voice({num_beats: 4, beat_value: 4}).addTickables(notes);
         
-        // Format the notes to fit the stave width
-        new VF.Formatter().joinVoices([voice]).format([voice], width - 40);
+        // Determine available space for notes: Total width minus stave start/end space
+        const formattingSpace = isFirstBar ? width - clefTimeSignatureOffset : width;
+        new VF.Formatter().joinVoices([voice]).format([voice], formattingSpace);
         voice.draw(context, stave);
         
         // --- Calculate Note Widths for Scrolling ---
         notes.forEach(note => {
-            // This is an approximate but necessary step in VexFlow for custom scrolling
+            // Get the width of the note *including* the space following it
             noteWidths.push(note.getMetrics().width);
         });
         
         // Set the size of the container div manually based on VexFlow's final drawn size
-        // This is crucial for the scroller's layout
         const svgElement = measureDiv.querySelector('svg');
         if (svgElement) {
             measureDiv.style.width = `${svgElement.getAttribute('width')}px`;
@@ -365,7 +394,7 @@
     // Logic to visually highlight the current target note
     function highlightTargetNote() {
         // Clear previous highlights
-        document.querySelectorAll('.vf-stave g path').forEach(path => {
+        document.querySelectorAll('.vf-measure-container g path').forEach(path => {
             path.style.fill = var2hex('--primary'); 
             path.style.transition = 'fill 0.1s ease'; 
         });
@@ -375,7 +404,7 @@
         if (targetElement) {
             const noteHeads = targetElement.querySelectorAll('path');
             noteHeads.forEach(path => {
-                path.style.fill = var2hex('--target-note'); // Set to bright green
+                path.style.fill = var2hex('--target-note'); 
             });
         }
     }
@@ -384,9 +413,6 @@
     function var2hex(variable) {
         return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
     }
-    
-    // Initial Start
-    // startExercise(3); // Called inside onMIDISuccess now
 </script>
 </body>
 </html>
