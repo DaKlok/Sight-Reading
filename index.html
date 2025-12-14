@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v10.0 - Notes Display Fix</title>
+<title>MelodyFlow v11.0 - VexFlow Stability Fix</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -20,6 +20,7 @@
     --outline: #79747E;
     --target-note: #00A96B;
     --default-note: var(--primary);
+    --wrong-flash: #F2B8B5;
 
     /* Background Gradient */
     --bg-gradient: radial-gradient(circle at 10% 90%, rgba(208, 188, 255, 0.3), transparent 50%),
@@ -38,6 +39,7 @@
     --outline: #938F99;
     --target-note: #00D382;
     --default-note: var(--primary);
+    --wrong-flash: #FFB4AB;
 
     /* Dark Mode Background Gradient */
     --bg-gradient: radial-gradient(circle at 10% 90%, rgba(208, 188, 255, 0.15), transparent 50%),
@@ -179,38 +181,38 @@ button.active {
 }
 
 
-/* --- Notation Area (Kept from v6.0) --- */
+/* --- Notation Area (Simplified for Single Stave) --- */
 #notation-window {
-    width: 760px;
+    width: 760px; /* Standard width for the viewing port */
     height: 180px;
     margin: 25px auto;
-    overflow: hidden;
+    overflow: hidden; /* Crucial for scrolling effect */
     border-radius: 16px;
     border: 2px solid var(--primary);
     position: relative;
-    display: flex;
+    display: block; /* Removed flex */
     box-shadow: inset 0 0 10px rgba(0,0,0,0.05); 
 }
 
-#fixed-stave {
-    width: 150px; 
-    height: 180px;
-    flex-shrink: 0; 
-    position: relative;
-    z-index: 10; 
-    background-color: var(--surface); 
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1); 
-}
-
 #notation {
-    margin-left: -5px; 
-    width: calc(760px - 150px + 5px); 
+    /* This div will hold the entire scrolling SVG */
+    position: relative; 
     height: 180px;
-    position: relative;
+    width: 100%; /* Will be dynamically resized much wider than 760px */
 }
 
 .wrong-flash {
-    /* Kept for feedback effect */
+    animation: shake .3s;
+    background-color: var(--wrong-flash); 
+    border-color: #E35050 !important;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    50% { transform: translateX(2px); }
+    75% { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
 }
 
 .stats {
@@ -241,7 +243,6 @@ button.active {
 </div>
 
 <div id="notation-window">
-    <div id="fixed-stave"></div>
     <div id="notation"></div>
 </div>
 
@@ -256,7 +257,7 @@ button.active {
 const VF = Vex.Flow;
 const NOTES_VISIBLE = 8;
 const NOTE_WIDTH = 100;
-const FIXED_STAVE_WIDTH = 150;
+const CLEF_KEY_WIDTH = 150; // Space reserved for clef and key signature on the left
 const ANIMATION_DURATION = 300; // ms (0.3s)
 
 let currentScaleName = 'C Major';
@@ -285,9 +286,6 @@ const KEY_SIGNATURES = {
 /**
  * Generates VexFlow note strings from a list of MIDI intervals, guaranteeing notes
  * are within the C4-C5 range for reliable drawing.
- * @param {number} rootMidi - The MIDI number of the root note (e.g., 60 for C4).
- * @param {number[]} intervals - List of semitones from the root.
- * @returns {string[]} VexFlow note strings.
  */
 function generateVexNotes(rootMidi, intervals) {
     const minMidi = 60; // C4
@@ -318,11 +316,11 @@ function generateVexNotes(rootMidi, intervals) {
         return `${note}/${octave}`;
     });
     
-    // Filter to unique notes (ensures no duplicate 'c/4' when intervals list contains '12')
+    // Filter to unique notes
     return [...new Set(notes)].filter(n => n.length > 2);
 }
 
-// Full Major and Minor Scale Data (Only intervals are kept)
+// Full Major and Minor Scale Data 
 const ALL_SCALES = {
     'Major Scales': {
         // Intervals: [0, 2, 4, 5, 7, 9, 11] (W W H W W W H)
@@ -359,17 +357,15 @@ const ALL_SCALES = {
 };
 
 
-// Helper function to get the full scale data and generate the note pool
 function getScaleData(scaleName) {
     for (const category in ALL_SCALES) {
         const scale = ALL_SCALES[category][scaleName];
         if (scale) {
-            currentKey = scale.key; // Set current key signature
+            currentKey = scale.key; 
             scale.notes = generateVexNotes(scale.root, scale.intervals);
             return scale;
         }
     }
-    // Default fallback (should not happen if first scale is always set)
     currentKey = ALL_SCALES['Major Scales']['C Major'].key;
     const defaultScale = ALL_SCALES['Major Scales']['C Major'];
     defaultScale.notes = generateVexNotes(defaultScale.root, defaultScale.intervals);
@@ -379,7 +375,6 @@ function getScaleData(scaleName) {
 function randomNote() {
     const scale = getScaleData(currentScaleName);
     const pool = scale.notes;
-    // Notes are guaranteed to be in C4-C5 range
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -388,69 +383,52 @@ function generateItem() {
 }
 
 function start() {
-    // Force set currentKey based on selected scale before generating sequence
     const scale = getScaleData(currentScaleName);
     currentKey = KEY_SIGNATURES[scale.key] || scale.key;
 
     sequence = [];
     for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
     
-    drawFixedStave();
     drawNotes();
 }
 
-// --- VexFlow Drawing Functions ---
+// --- VexFlow Drawing Functions (Stabilized) ---
 
 /**
- * Draws the Clef, Key, and Time Signature once in the fixed area.
- */
-function drawFixedStave() {
-    const el = document.getElementById('fixed-stave');
-    el.innerHTML = '';
-    
-    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(FIXED_STAVE_WIDTH, 180);
-    const ctx = r.getContext();
-
-    // Ensure VexFlow honors the dynamic theme color
-    const color = getComputedStyle(document.body).getPropertyValue('--on-surface').trim();
-    ctx.setFillStyle(color);
-    ctx.setStrokeStyle(color);
-
-    const stave = new VF.Stave(0, 40, FIXED_STAVE_WIDTH);
-    // Use the VexFlow mapped key signature
-    stave.addClef(clef)
-          .addTimeSignature("4/4")
-          .addKeySignature(KEY_SIGNATURES[currentKey] || currentKey); 
-    stave.setContext(ctx).draw();
-}
-
-/**
- * Draws only the notes on the scrolling area.
+ * Draws the Clef, Key, Time Signature, and all notes on a single scrolling stave.
  */
 function drawNotes() {
     const el = document.getElementById('notation');
     
+    // Clear the container completely
     el.innerHTML = '';
+    
+    // Total width needed for the stave
+    const totalStaveWidth = CLEF_KEY_WIDTH + (NOTES_VISIBLE * NOTE_WIDTH) + 50; 
+    
+    // Set container width and reset scroll position
+    el.style.width = `${totalStaveWidth}px`;
     el.style.transform = 'translateX(0)'; 
     el.style.transition = 'none';
 
-    const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
-    
+    // 1. Setup Renderer
     const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(width, 180);
+    r.resize(totalStaveWidth, 180);
     const ctx = r.getContext();
 
-    // Ensure VexFlow honors the dynamic theme color
+    // Set SVG colors based on theme
     const color = getComputedStyle(document.body).getPropertyValue('--on-surface').trim();
     ctx.setFillStyle(color);
     ctx.setStrokeStyle(color);
-
-    // Staff line slightly overlaps fixed staff for continuity
-    const stave = new VF.Stave(-5, 40, width + 5); 
+    
+    // 2. Setup Stave (Starts at X=0)
+    const stave = new VF.Stave(0, 40, totalStaveWidth);
+    stave.addClef(clef)
+          .addTimeSignature("4/4")
+          .addKeySignature(KEY_SIGNATURES[currentKey] || currentKey); 
     stave.setContext(ctx).draw();
     
-    // FIX: Always use 'q' (quarter note) for simplicity unless rhythm mode is on
+    // 3. Prepare Notes
     const durationType = rhythmMode ? '8' : 'q';
     
     const notes = sequence.map((keys, i) => {
@@ -460,29 +438,30 @@ function drawNotes() {
             clef
         });
         
-        // FIX: Re-attach the key signature object. This is a common VexFlow technique
-        // to help VexFlow automatically place necessary accidentals correctly.
+        // Attach KeySig to help VexFlow render accidentals correctly
         new VF.KeySig(KEY_SIGNATURES[currentKey] || currentKey).attach(n);
         
         n.setAttribute('data-i', i);
         return n;
     });
 
-    // FIX: Voice beat value must match the number of notes (8) times the beat length (1 or 0.5)
+    // 4. Voice and Formatting
     const beatValue = rhythmMode ? 0.5 : 1; 
     const voice = new VF.Voice({ 
         num_beats: NOTES_VISIBLE * beatValue, 
-        beat_value: 4 // Quarter note is the beat unit
+        beat_value: 4 
     });
     
     voice.addTickables(notes);
     
     try {
-        new VF.Formatter().joinVoices([voice]).format([voice], width);
+        const formatter = new VF.Formatter();
+        // Shift start X to position the first note immediately after the clef/key
+        formatter.formatToStave([voice], stave);
+        
         voice.draw(ctx, stave);
     } catch (e) {
         console.error("VexFlow Drawing Error. Check note/voice configuration:", e);
-        // Display an error message on the staff area if drawing fails
         el.innerHTML = `<div style="color: red; padding: 50px;">Rendering Error. Check console for details.</div>`;
     }
 
@@ -491,9 +470,10 @@ function drawNotes() {
 
 
 function highlight() {
-    // Note: VexFlow notes are colored via inline styles, we need to apply theme var() here
+    // Note: VexFlow notes are colored via inline styles
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
     
+    // The target note (data-i="0") is always the first one visible
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
     if (!targetNoteElement) return;
     
@@ -502,8 +482,14 @@ function highlight() {
 
 function correctNote() {
     const el = document.getElementById('notation');
+    
+    // The distance to translate is the distance of the first note from the left edge of the stave
+    // With the VexFlow formatter, this is tricky to calculate exactly, but a safe starting guess
+    // is to translate past the CLEF_KEY_WIDTH and the note's width.
+    const translateDistance = CLEF_KEY_WIDTH; // Move stave past the fixed area
+    
     el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
-    el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
+    el.style.transform = `translateX(-${translateDistance}px)`;
 
     setTimeout(() => {
         sequence.shift();
@@ -512,6 +498,7 @@ function correctNote() {
         correct++; streak++; best = Math.max(best, streak);
         updateStats();
         
+        // Redraw immediately resets the SVG and draws the new sequence starting at X=0
         drawNotes(); 
     }, ANIMATION_DURATION); 
 }
@@ -536,7 +523,6 @@ function midiToVex(m) {
     const octave = Math.floor(m / 12) - 1;
     let note = MIDI_TO_NOTE[noteIndex].toLowerCase();
     
-    // Apply enharmonic mapping for flat keys (Crucial for VexFlow compatibility)
     const enharmonicMap = {
         'd#': 'eb', 'g#': 'ab', 'c#': 'db', 'f#': 'gb', 'a#': 'bb'
     };
@@ -599,7 +585,6 @@ function generateScaleControls() {
         html += `<div class="scale-category"><h3>${category}</h3><div class="controls">`;
         
         for (const scaleName in ALL_SCALES[category]) {
-            // Set the first scale button to active by default
             const isActive = isFirstButton ? 'active' : '';
             
             html += `<button class="${isActive}" onclick="setScale('${scaleName}', event)">${scaleName}</button>`;
@@ -620,15 +605,12 @@ function generateScaleControls() {
 function setScale(s, event) {
     currentScaleName = s;
     
-    // Deactivate all buttons across all groups
     document.querySelectorAll('#scale-controls-container button').forEach(b => b.classList.remove('active'));
     
-    // Activate the clicked button
     if(event && event.target) {
         event.target.classList.add('active');
     }
     
-    // Reset stats/streak when changing scales
     total = 0; correct = 0; streak = 0; best = 0;
     updateStats();
     start();
@@ -649,7 +631,6 @@ document.getElementById('rhythmToggle').onchange = e => {
 
 document.getElementById('darkModeToggle').onchange = e => {
     document.body.classList.toggle('dark-mode', e.target.checked);
-    // Redraw staves to update VexFlow colors (staff lines and notes)
     start(); 
 };
 
