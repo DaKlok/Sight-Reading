@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v7.0 - Extensive Scale Library</title>
+<title>MelodyFlow v8.0 - Full Scale Library & Tabbed UI</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
 <style>
 /* --- Material 3 Color System & Gradient Background --- */
 :root {
-    /* Light Theme Palette (Material 3 key colors) */
+    /* Light Theme Palette */
     --primary: #6750A4;
     --on-primary: #FFFFFF;
     --secondary: #625B71;
@@ -20,9 +20,8 @@
     --outline: #79747E;
     --target-note: #00A96B;
     --default-note: var(--primary);
-    --wrong-flash: #F2B8B5;
 
-    /* Background Gradient for Expressive Look */
+    /* Background Gradient */
     --bg-gradient: radial-gradient(circle at 10% 90%, rgba(208, 188, 255, 0.3), transparent 50%),
                     radial-gradient(circle at 90% 10%, rgba(103, 80, 164, 0.2), transparent 50%),
                     var(--background);
@@ -39,7 +38,6 @@
     --outline: #938F99;
     --target-note: #00D382;
     --default-note: var(--primary);
-    --wrong-flash: #FFB4AB;
 
     /* Dark Mode Background Gradient */
     --bg-gradient: radial-gradient(circle at 10% 90%, rgba(208, 188, 255, 0.15), transparent 50%),
@@ -53,9 +51,9 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh; /* Use min-height to accommodate more buttons */
+    min-height: 100vh;
     margin: 0;
-    padding: 20px 0; /* Add padding for scroll space */
+    padding: 20px 0;
     color: var(--on-surface);
     transition: background-color 0.3s, color 0.3s;
 }
@@ -65,7 +63,7 @@ body {
     padding: 32px;
     border-radius: 36px; 
     width: 95%;
-    max-width: 960px;
+    max-width: 1000px; /* Slightly wider container */
     text-align: center;
     box-shadow: 0 12px 40px rgba(0,0,0,.2);
     transition: background-color 0.3s;
@@ -73,24 +71,44 @@ body {
 
 h1 { color: var(--primary); margin-bottom: 20px; font-weight: 500;}
 
-/* Scale Category Styling */
-.scale-category {
-    margin: 15px 0;
-    padding-bottom: 15px;
-    border-bottom: 1px dashed var(--outline);
+/* --- Scale Tabbed Navigation --- */
+#scale-tabs {
+    display: flex;
+    justify-content: center;
+    border-bottom: 2px solid var(--outline);
+    margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
-.scale-category:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.scale-category h3 {
+.scale-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 500;
     color: var(--secondary);
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-bottom-color 0.2s;
+}
+
+.scale-tab.active-tab {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+}
+
+/* --- Scale Content Area --- */
+#scale-content-area {
+    min-height: 60px; /* Reserve space to prevent layout shift */
+}
+
+/* Individual scale buttons container */
+.scale-controls-group {
+    display: none; /* Hidden by default, shown when category tab is active */
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.scale-controls-group.active-group {
+    display: flex;
 }
 
 
@@ -106,14 +124,14 @@ h1 { color: var(--primary); margin-bottom: 20px; font-weight: 500;}
 button {
     border: none; 
     background: transparent;
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 20px;
     cursor: pointer;
     color: var(--on-surface);
     border: 1px solid var(--outline);
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    font-size: 0.9rem;
-    white-space: nowrap; /* Prevents button text wrapping */
+    font-size: 0.85rem;
+    white-space: nowrap;
 }
 
 button:hover {
@@ -130,12 +148,12 @@ button.active {
 }
 
 
-/* --- Toggle Switch Styling (Kept from v6.0) --- */
+/* --- Toggle Switch Styling --- */
 .toggle {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--on-surface);
 }
 
@@ -173,7 +191,7 @@ button.active {
 }
 
 
-/* --- Notation Area (Kept from v6.0) --- */
+/* --- Notation Area --- */
 #notation-window {
     width: 760px;
     height: 180px;
@@ -233,8 +251,12 @@ button.active {
 <div class="container" id="card">
 <h1>MelodyFlow Practice</h1>
 
-<div id="scale-controls">
-    </div>
+<div id="scale-controls-container">
+    <div id="scale-tabs">
+        </div>
+    <div id="scale-content-area">
+        </div>
+</div>
 
 <div class="toggles">
     <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
@@ -262,6 +284,7 @@ const NOTES_VISIBLE = 8;
 const NOTE_WIDTH = 100;
 const FIXED_STAVE_WIDTH = 150;
 const ANIMATION_DURATION = 300; // ms (0.3s)
+const MIDDLE_OCTAVE = 4; // Start notes around C4
 
 let currentScaleName = 'C Major';
 let clef = 'treble';
@@ -273,44 +296,98 @@ let sequence = [];
 let total = 0, correct = 0;
 let streak = 0, best = 0;
 
-// Expanded Scale Data organized by category
+// MIDI Note Name Mapping (0-11)
+const MIDI_TO_NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// VexFlow Key Signatures for common keys (for display)
+const KEY_SIGNATURES = {
+    'C': 'C', 'G': 'G', 'D': 'D', 'A': 'A', 'E': 'E', 'B': 'B', 'F#': 'F#',
+    'F': 'F', 'Bb': 'Bb', 'Eb': 'Eb', 'Ab': 'Ab', 'Db': 'Db', 'Gb': 'Gb', 'Cb': 'Cb',
+    // Minor keys use their relative major's signature for VexFlow rendering
+    'Am': 'C', 'Em': 'G', 'Bm': 'D', 'F#m': 'A', 'C#m': 'E', 'G#m': 'B', 'D#m': 'F#',
+    'Dm': 'F', 'Gm': 'Bb', 'Cm': 'Eb', 'Fm': 'Ab', 'Bbm': 'Db', 'Ebm': 'Gb', 'Abm': 'Cb'
+};
+
+/**
+ * Generates VexFlow note strings from a list of MIDI intervals.
+ * @param {number} rootMidi - The MIDI number of the root note (e.g., 60 for C4).
+ * @param {number[]} intervals - List of semitones from the root (e.g., [0, 2, 4, 5, 7, 9, 11, 12]).
+ * @returns {string[]} VexFlow note strings (e.g., ['c/4', 'd/4', ...]).
+ */
+function generateVexNotes(rootMidi, intervals) {
+    return intervals.map(interval => {
+        const midi = rootMidi + interval;
+        const noteIndex = midi % 12;
+        const octave = Math.floor(midi / 12) - 1;
+        
+        let note = MIDI_TO_NOTE[noteIndex].toLowerCase();
+        
+        // VexFlow uses 'b' (flat) for flats and '#' for sharps.
+        // If we use 'A#' and the key sig is flat (e.g., Bb), VexFlow might complain.
+        // For simplicity in this structure, we stick to the MIDI names and let VexFlow handle accidentals.
+        // For keys with flats, ensure the note names in the intervals are consistent (e.g., 'bb/4' instead of 'a#/4')
+        // We will stick to the default MIDI mapping for now.
+        return `${note}${octave}`;
+    });
+}
+
+// Full Scale Data structured by MIDI intervals
 const ALL_SCALES = {
-    'Major Scales': {
-        'C Major':    { key: 'C',   notes: ['c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'] },
-        'G Major':    { key: 'G',   notes: ['c/4','d/4','e/4','f#/4','g/4','a/4','b/4','c/5'] },
-        'F Major':    { key: 'F',   notes: ['c/4','d/4','e/4','f/4','g/4','a/4','bb/4','c/5'] },
-        'D Major':    { key: 'D',   notes: ['c/4','d/4','e/4','f#/4','g/4','a/4','b/4','c#/5'] },
+    'Major & Minor': {
+        // Major Scales (Root, Key Signature, Intervals)
+        'C Major':    { root: 60, key: 'C',   intervals: [0, 2, 4, 5, 7, 9, 11, 12] }, // C4
+        'G Major':    { root: 67, key: 'G',   intervals: [0, 2, 4, 5, 7, 9, 11, 12] }, // G4
+        'F Major':    { root: 65, key: 'F',   intervals: [0, 2, 4, 5, 7, 9, 11, 12] }, // F4
+        'A Natural Minor': { root: 57, key: 'Am',  intervals: [0, 2, 3, 5, 7, 8, 10, 12] }, // A3
+        'E Natural Minor': { root: 64, key: 'Em',  intervals: [0, 2, 3, 5, 7, 8, 10, 12] }, // E4
+        'D Harmonic Minor': { root: 62, key: 'Dm',  intervals: [0, 2, 3, 5, 7, 8, 11, 12] }, // D4
+        'C Melodic Minor (Asc)': { root: 60, key: 'Cm',  intervals: [0, 2, 3, 5, 7, 9, 11, 12] }, // C4
     },
-    'Natural Minor Scales': {
-        'A Natural Minor': { key: 'Am',  notes: ['c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'] },
-        'E Natural Minor': { key: 'Em',  notes: ['d/4','e/4','f#/4','g/4','a/4','b/4','c/5','d/5'] },
-        'D Natural Minor': { key: 'Dm',  notes: ['c/4','d/4','eb/4','f/4','g/4','a/4','bb/4','c/5'] },
+    'Modes (Diatonic)': {
+        'C Ionian (Major)': { root: 60, key: 'C',   intervals: [0, 2, 4, 5, 7, 9, 11, 12] },
+        'D Dorian':   { root: 62, key: 'Dm',  intervals: [0, 2, 3, 5, 7, 9, 10, 12] },
+        'E Phrygian': { root: 64, key: 'Em',  intervals: [0, 1, 3, 5, 7, 8, 10, 12] },
+        'F Lydian':   { root: 65, key: 'F',   intervals: [0, 2, 4, 6, 7, 9, 11, 12] },
+        'G Mixolydian': { root: 67, key: 'G',   intervals: [0, 2, 4, 5, 7, 9, 10, 12] },
+        'A Aeolian (Nat Minor)': { root: 69, key: 'Am',  intervals: [0, 2, 3, 5, 7, 8, 10, 12] },
+        'B Locrian':  { root: 71, key: 'Bm',  intervals: [0, 1, 3, 5, 6, 8, 10, 12] },
     },
-    'Harmonic Minor Scales': {
-        'A Harmonic Minor': { key: 'Am',  notes: ['c/4','d/4','e/4','f/4','g#/4','a/4','b/4','c/5'] },
-        'E Harmonic Minor': { key: 'Em',  notes: ['d/4','e/4','f#/4','g/4','a/4','b/4','c#/5','d/5'] },
+    'Pentatonic & Blues': {
+        'C Major Pentatonic': { root: 60, key: 'C',   intervals: [0, 2, 4, 7, 9, 12] },
+        'A Minor Pentatonic': { root: 69, key: 'Am',  intervals: [0, 3, 5, 7, 10, 12] },
+        'C Blues':    { root: 60, key: 'C',   intervals: [0, 3, 5, 6, 7, 10, 12] }, // Minor Pent + b5
     },
-    'Pentatonic & Other': {
-        'C Major Pentatonic': { key: 'C',   notes: ['c/4','d/4','e/4','g/4','a/4','c/5'] },
-        'A Minor Pentatonic': { key: 'Am',  notes: ['a/4','c/5','d/5','e/5','g/5','a/5'] },
-        'Chromatic':        { key: 'C',   notes: ['c/4','c#/4','d/4','d#/4','e/4','f/4','f#/4','g/4','g#/4','a/4','a#/4','b/4','c/5'] }
+    'Exotic & Symmetrical': {
+        'Whole Tone': { root: 60, key: 'C',   intervals: [0, 2, 4, 6, 8, 10, 12] },
+        'Octatonic (Half/Whole)': { root: 60, key: 'C',   intervals: [0, 1, 3, 4, 6, 7, 9, 10, 12] },
+        'Chromatic':  { root: 60, key: 'C',   intervals: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
     }
 };
 
-// Helper function to flatten the structure for easier access
+// --- Core Logic ---
+
+// Helper function to get the full scale data and generate the note pool
 function getScaleData(scaleName) {
     for (const category in ALL_SCALES) {
-        if (ALL_SCALES[category][scaleName]) {
-            return ALL_SCALES[category][scaleName];
+        const scale = ALL_SCALES[category][scaleName];
+        if (scale) {
+            // Generate the VexFlow notes on demand
+            scale.notes = generateVexNotes(scale.root, scale.intervals);
+            return scale;
         }
     }
-    return ALL_SCALES['Major Scales']['C Major']; // Default fallback
+    // Default fallback
+    const defaultScale = ALL_SCALES['Major & Minor']['C Major'];
+    defaultScale.notes = generateVexNotes(defaultScale.root, defaultScale.intervals);
+    return defaultScale; 
 }
 
 function randomNote() {
     const scale = getScaleData(currentScaleName);
     const pool = scale.notes;
-    return pool[Math.floor(Math.random() * pool.length)];
+    // We only use the first 8-10 notes of the pool to keep it around the middle staff
+    const safePool = pool.slice(0, Math.min(pool.length, 10)); 
+    return safePool[Math.floor(Math.random() * safePool.length)];
 }
 
 function generateItem() {
@@ -322,7 +399,7 @@ function start() {
     for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
     
     const scale = getScaleData(currentScaleName);
-    currentKey = scale.key;
+    currentKey = KEY_SIGNATURES[scale.key] || scale.key; // Use mapped key sig if available
     
     drawFixedStave();
     drawNotes();
@@ -338,9 +415,9 @@ function drawFixedStave() {
     const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
     r.resize(FIXED_STAVE_WIDTH, 180);
     const ctx = r.getContext();
-    // Check for dark mode to set staff colors
+
     const isDarkMode = document.body.classList.contains('dark-mode');
-    const color = isDarkMode ? 'var(--on-surface)' : 'var(--on-surface)'; 
+    const color = getComputedStyle(document.body).getPropertyValue('--on-surface').trim();
     ctx.setFillStyle(color);
     ctx.setStrokeStyle(color);
 
@@ -359,7 +436,7 @@ function drawNotes() {
     
     el.innerHTML = '';
     el.style.transform = 'translateX(0)'; 
-    el.style.transition = 'none'; // Ensure reset is instantaneous (no bounce)
+    el.style.transition = 'none';
 
     const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
     
@@ -367,13 +444,11 @@ function drawNotes() {
     r.resize(width, 180);
     const ctx = r.getContext();
 
-    // Check for dark mode to set staff colors
-    const isDarkMode = document.body.classList.contains('dark-mode');
-    const color = isDarkMode ? 'var(--on-surface)' : 'var(--on-surface)'; 
+    const color = getComputedStyle(document.body).getPropertyValue('--on-surface').trim();
     ctx.setFillStyle(color);
     ctx.setStrokeStyle(color);
 
-    // Start the staff line slightly to the left (X=-5) to overlap the fixed staff
+    // Staff line slightly overlaps fixed staff for continuity
     const stave = new VF.Stave(-5, 40, width + 5); 
     stave.setContext(ctx).draw();
     
@@ -401,8 +476,8 @@ function drawNotes() {
     highlight();
 }
 
-
 function highlight() {
+    // Note: VexFlow notes are colored via inline styles, we need to apply theme var() here
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
     
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
@@ -413,25 +488,17 @@ function highlight() {
 
 function correctNote() {
     const el = document.getElementById('notation');
-    
-    // Apply the transition *before* the transform for a smooth start
     el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
-
-    // 1. Start the smooth slide animation
     el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
 
     setTimeout(() => {
-        // 2. Update the internal sequence
         sequence.shift();
         sequence.push(generateItem());
         
-        // 3. Update stats
         correct++; streak++; best = Math.max(best, streak);
         updateStats();
         
-        // 4. Redraw the scrolling notes (instant reset to position 0)
         drawNotes(); 
-        
     }, ANIMATION_DURATION); 
 }
 
@@ -451,17 +518,21 @@ function updateStats() {
 }
 
 function midiToVex(m) {
-    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    // Use 'bb' for B-flat, 'eb' for E-flat etc., as required by VexFlow for key signatures
-    const vexNotes = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    const octave = Math.floor(m/12)-1;
-
-    let noteName = vexNotes[m % 12];
+    const noteIndex = m % 12;
+    const octave = Math.floor(m / 12) - 1;
+    let note = MIDI_TO_NOTE[noteIndex].toLowerCase();
     
-    // If the note name contains '#' but the current key is flat (e.g., F major), 
-    // VexFlow often handles the visual accidentals, but for MIDI input matching, we need flexibility.
-    // For simplicity, we stick to the common sharp/natural mapping here.
-    return `${noteName}/${octave}`;
+    // Convert sharps to flats if the current scale's key signature is flat, 
+    // to match VexFlow's preferred rendering/parsing in that key context.
+    // Example: D-flat Major key sig, we prefer 'eb' over 'd#'
+    if (currentKey.includes('b')) {
+        const enharmonicMap = {'d#': 'eb', 'g#': 'ab', 'c#': 'db', 'f#': 'gb', 'a#': 'bb'};
+        if (enharmonicMap[note]) {
+            note = enharmonicMap[note];
+        }
+    }
+
+    return `${note}/${octave}`;
 }
 
 const pressedKeys = new Set(); 
@@ -472,22 +543,7 @@ navigator.requestMIDIAccess().then(m => {
             const status = e.data[0];
             const midiNote = e.data[1];
             const velocity = e.data[2];
-            let playedVex = midiToVex(midiNote);
-            
-            // Special case handling for 'b' notation in C Major and A Minor modes
-            // e.g., F Major (Bb)
-            if (currentKey.includes('b') && playedVex.includes('a#')) {
-                // If current key implies flats, map A# to Bb (MIDI note 58 to 'a#/3')
-                // This is a crude fix; VexFlow's parsing is complex. We rely on the raw MIDI-to-Vex here.
-                // Note: MIDI note 58 is 'a#/3' or 'bb/3'. We check if the target has 'bb'.
-                const targetNotes = sequence[0];
-                if (targetNotes.some(n => n.includes('b') && !n.includes('#'))) {
-                    // Check if the note is enharmonically equivalent to one of the target notes
-                    // For example, if target is 'bb/4' (A# / MIDI 70), and input is 'a#/4'
-                    // This is handled better by having the raw scale notes use 'bb' instead of 'a#'
-                }
-            }
-
+            const playedVex = midiToVex(midiNote);
 
             if (status === 144 && velocity > 0) { // Note On
                 pressedKeys.add(playedVex);
@@ -519,33 +575,56 @@ navigator.requestMIDIAccess().then(m => {
     }
 });
 
-// --- UI Control Functions ---
+// --- UI Control Functions (Tabbed Interface) ---
 
 function generateScaleControls() {
-    const container = document.getElementById('scale-controls');
-    let html = '';
-
+    const tabContainer = document.getElementById('scale-tabs');
+    const contentContainer = document.getElementById('scale-content-area');
+    let tabHtml = '';
+    let contentHtml = '';
+    let isFirstCategory = true;
+    
+    // 1. Generate Tabs and Content containers
     for (const category in ALL_SCALES) {
-        html += `<div class="scale-category"><h3>${category}</h3><div class="controls">`;
+        const categoryId = category.replace(/\s/g, '');
+        const activeTabClass = isFirstCategory ? 'active-tab' : '';
+        const activeGroupClass = isFirstCategory ? 'active-group' : '';
+        
+        // Tab button
+        tabHtml += `<div class="scale-tab ${activeTabClass}" data-category="${categoryId}" onclick="changeScaleCategory('${categoryId}')">${category}</div>`;
+        
+        // Scale Buttons Content Group
+        contentHtml += `<div id="group-${categoryId}" class="scale-controls-group ${activeGroupClass}">`;
         
         for (const scaleName in ALL_SCALES[category]) {
-            // Determine if this is the initially active scale
             const isActive = scaleName === currentScaleName ? 'active' : '';
-            
-            html += `<button id="scale-${scaleName.replace(/\s/g, '-')}" class="${isActive}" onclick="setScale('${scaleName}', event)">${scaleName}</button>`;
+            contentHtml += `<button class="${isActive}" onclick="setScale('${scaleName}', event)">${scaleName}</button>`;
         }
         
-        html += `</div></div>`;
+        contentHtml += `</div>`;
+        isFirstCategory = false;
     }
     
-    container.innerHTML = html;
+    tabContainer.innerHTML = tabHtml;
+    contentContainer.innerHTML = contentHtml;
 }
+
+function changeScaleCategory(categoryId) {
+    // Deactivate all tabs and hide all content groups
+    document.querySelectorAll('.scale-tab').forEach(tab => tab.classList.remove('active-tab'));
+    document.querySelectorAll('.scale-controls-group').forEach(group => group.classList.remove('active-group'));
+
+    // Activate the clicked tab and show the corresponding content group
+    document.querySelector(`.scale-tab[data-category="${categoryId}"]`).classList.add('active-tab');
+    document.getElementById(`group-${categoryId}`).classList.add('active-group');
+}
+
 
 function setScale(s, event) {
     currentScaleName = s;
     
-    // Deactivate all buttons
-    document.querySelectorAll('#scale-controls button').forEach(b => b.classList.remove('active'));
+    // Deactivate all buttons across all groups
+    document.querySelectorAll('#scale-content-area button').forEach(b => b.classList.remove('active'));
     
     // Activate the clicked button
     if(event && event.target) {
@@ -600,7 +679,7 @@ function exportStats() {
     downloadAnchorNode.remove();
 }
 
-// Initialize the scale buttons and the staff
+// --- Initialization ---
 generateScaleControls();
 start();
 </script>
