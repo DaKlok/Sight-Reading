@@ -1,603 +1,893 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.4 - Scale Practice</title>
+
+<title>MelodyFlow v5.3 - Seamless Stave</title>
+
+
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
+
+
 <style>
-/* --- 1. Material 3 Color System (Light Mode Defaults) --- */
+
 :root {
-    --primary: #6750A4; /* Primary (Violet) */
-    --on-primary: #FFFFFF;
-    --primary-container: #EADDFF;
-    --surface: #F7F2FA; /* Surface (Light Lavender) */
-    --on-surface: #1C1B1F;
-    --background: #FEF7FF; /* Background */
+
+    --primary: #6750A4;
+
+    --surface: #F7F2FA;
+
+    --background: #FEF7FF;
+
     --outline: #79747E;
-    --outline-variant: #CAC4D0;
-    --target-note: #00A96B; /* Success (Green) */
-    --default-note: var(--primary);
-    --wrong-flash: #F2B8B5; /* Error (Red) */
-    --on-wrong-flash: #410E0B;
 
-    /* Gradient Background - Subtle, M3-inspired */
-    --body-gradient: linear-gradient(135deg, #FEF7FF 0%, #F3EDF7 100%);
+    --target-note: #00A96B;
 
-    transition: background-color 0.3s, color 0.3s;
-}
+    --default-note: #6750A4;
 
-/* --- 2. Dark Mode Overrides --- */
-body.dark-mode {
-    --primary: #D0BCFF;
-    --on-primary: #381E72;
-    --primary-container: #4F378B;
-    --surface: #1C1B1F;
-    --on-surface: #E6E1E5;
-    --background: #1C1B1F;
-    --outline: #938F99;
-    --outline-variant: #49454F;
-    --target-note: #6DD5AA;
-    --default-note: var(--primary);
     --wrong-flash: #F2B8B5;
-    --on-wrong-flash: #410E0B;
 
-    --body-gradient: #1C1B1F; /* Solid dark background in dark mode */
 }
 
-/* --- 3. Base Styles --- */
+
+
 body {
+
     font-family: 'Segoe UI', Roboto, sans-serif;
-    background: var(--body-gradient);
-    color: var(--on-surface);
+
+    background: var(--background);
+
     display: flex;
+
     justify-content: center;
+
     align-items: center;
+
     height: 100vh;
+
     margin: 0;
+
 }
+
+
 
 .container {
+
     background: var(--surface);
+
     padding: 32px;
-    border-radius: 28px; /* M3 large radius */
+
+    border-radius: 28px;
+
     width: 95%;
+
     max-width: 960px;
+
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,.15); /* M3 subtle elevation */
-    border: 1px solid var(--outline-variant);
+
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+
 }
 
-h1 { color: var(--primary); margin-bottom: 16px; }
 
-/* --- 4. Controls/Inputs --- */
+
+h1 { color: var(--primary); margin-bottom: 10px; }
+
+
+
 .controls, .toggles {
+
     display: flex;
+
     justify-content: center;
-    gap: 12px;
+
+    gap: 10px;
+
     flex-wrap: wrap;
-    margin-bottom: 20px;
+
+    margin-bottom: 12px;
+
 }
 
-select {
-    padding: 10px 18px;
-    border: 1px solid var(--outline);
-    background: var(--surface);
-    color: var(--on-surface);
-    border-radius: 18px;
-    appearance: none; /* Hide default arrow */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 36px;
-    cursor: pointer;
-    font-size: 1rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,.1);
-}
+
 
 button {
+
     border: 1px solid var(--outline);
+
     background: transparent;
+
     padding: 8px 18px;
+
     border-radius: 18px;
+
     cursor: pointer;
-    color: var(--primary);
-    transition: background 0.15s, box-shadow 0.15s;
+
 }
 
-button:hover {
-    box-shadow: 0 2px 4px rgba(0,0,0,.1);
-}
 
-.toggles button {
-    color: var(--on-surface);
-}
 
-/* Toggle Switch Style (M3) */
-.toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-}
+button.active {
 
-.toggle input[type="checkbox"] {
-    appearance: none;
-    width: 38px;
-    height: 20px;
-    background: var(--outline);
-    border-radius: 10px;
-    position: relative;
-    cursor: pointer;
-    transition: background-color .2s;
-}
-
-.toggle input:checked {
     background: var(--primary);
+
+    color: white;
+
 }
 
-.toggle input[type="checkbox"]::after {
-    content: '';
-    width: 16px;
-    height: 16px;
-    background: var(--on-primary);
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform .2s, background-color .2s;
+
+
+.toggle {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 0.85rem;
+
 }
+
+
+
+.toggle input {
+
+    appearance: none;
+
+    width: 34px;
+
+    height: 18px;
+
+    background: #bbb;
+
+    border-radius: 9px;
+
+    position: relative;
+
+}
+
+
+
+.toggle input:checked { background: var(--primary); }
+
+
+
+.toggle input::after {
+
+    content: '';
+
+    width: 14px;
+
+    height: 14px;
+
+    background: white;
+
+    border-radius: 50%;
+
+    position: absolute;
+
+    top: 2px;
+
+    left: 2px;
+
+    transition: transform .2s;
+
+}
+
+
 
 .toggle input:checked::after {
-    transform: translateX(18px);
-    background: var(--on-primary);
+
+    transform: translateX(16px);
+
 }
 
-/* --- 5. Notation Area --- */
+
+
 #notation-window {
+
     width: 760px;
+
     height: 180px;
+
     margin: 20px auto;
+
     overflow: hidden;
+
     border-radius: 16px;
+
     border: 2px solid var(--primary);
+
     position: relative;
+
     display: flex;
-    background-color: white; /* Stave background */
-    box-shadow: inset 0 0 8px rgba(0,0,0,.05);
+
 }
 
-/* Override stave colors for dark mode */
-body.dark-mode #notation-window {
-    background-color: #333333; /* Darker stave background */
-    border-color: var(--primary);
-}
 
-body.dark-mode #notation-window svg path,
-body.dark-mode #notation-window svg line {
-    stroke: var(--on-surface) !important;
-    fill: var(--on-surface) !important;
-}
 
-body.dark-mode #notation-window .vf-notehead path {
-    fill: var(--default-note) !important;
-}
+/* New element for the non-moving part */
 
-/* Fixed/Scrolling Stave Areas */
 #fixed-stave {
-    width: 150px;
+
+    width: 150px; 
+
     height: 180px;
-    flex-shrink: 0;
+
+    flex-shrink: 0; 
+
     position: relative;
-    z-index: 10;
-    background-color: inherit; /* Inherit white/dark background */
+
+    z-index: 10; 
+
+    background-color: var(--surface); 
+
 }
+
+
+
+/* The element that holds the scrolling notes */
 
 #notation {
-    margin-left: -5px;
-    width: calc(760px - 150px + 5px);
+
+    /* Use a negative margin to visually overlap the staves and hide the gap */
+
+    margin-left: -5px; 
+
+    width: calc(760px - 150px + 5px); /* Adjusted width to compensate for negative margin */
+
     height: 180px;
+
     position: relative;
+
+    /* FIX: The transition will be applied and removed dynamically in JS to prevent "bounce" */
+
+    /* Remove the static transition line here */
+
 }
 
-/* Wrong Flash/Shake */
+
+
+
+
+/* Reduced shake animation and targeted to notation area */
+
 .wrong-flash {
+
     animation: shake .3s;
-    background-color: var(--wrong-flash);
+
+    background-color: var(--wrong-flash); 
+
     border-color: #E35050 !important;
+
 }
+
+
 
 @keyframes shake {
+
     0% { transform: translateX(0); }
-    25% { transform: translateX(-3px); }
-    50% { transform: translateX(3px); }
-    75% { transform: translateX(-3px); }
+
+    25% { transform: translateX(-2px); }
+
+    50% { transform: translateX(2px); }
+
+    75% { transform: translateX(-2px); }
+
     100% { transform: translateX(0); }
+
 }
 
-/* --- 6. Stats Area --- */
+
+
 .stats {
+
     display: flex;
+
     justify-content: center;
-    gap: 30px;
-    font-size: 0.9rem;
+
+    gap: 20px;
+
+    font-size: 0.85rem;
+
     margin-top: 15px;
-    color: var(--on-surface);
+
 }
 
-.stats span {
-    font-weight: bold;
-    color: var(--primary);
-}
 </style>
+
 </head>
+
+
 
 <body>
 
+
+
 <div class="container" id="card">
-<h1>MelodyFlow v5.4</h1>
+
+<h1>MelodyFlow</h1>
+
+
 
 <div class="controls">
-    <select id="scale-select" onchange="setScale(event.target.value)">
-        </select>
+
+    <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
+
+    <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
+
+    <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
+
 </div>
 
+
+
 <div class="toggles">
-    <label class="toggle">Dark Mode <input type="checkbox" id="darkModeToggle"></label>
+
     <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
+
     <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
+
     <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
+
     <button onclick="exportStats()">Export Stats 📊</button>
+
 </div>
+
 
 
 <div id="notation-window">
+
     <div id="fixed-stave"></div>
+
     <div id="notation"></div>
+
 </div>
+
+
 
 <div class="stats">
+
     <div>Accuracy: <span id="accuracy">100%</span></div>
+
     <div>Streak: <span id="streak">0</span></div>
+
     <div>Best: <span id="best">0</span></div>
+
 </div>
+
 </div>
+
+
 
 <script>
+
 const VF = Vex.Flow;
+
 const NOTES_VISIBLE = 8;
-const NOTE_WIDTH = 100;
-const FIXED_STAVE_WIDTH = 150;
-const ANIMATION_DURATION = 300;
+
+const NOTE_WIDTH = 100; // Estimated width of a note block for sliding
+
+const FIXED_STAVE_WIDTH = 150; // Must match CSS
+
+const ANIMATION_DURATION = 300; // ms (0.3s)
+
+
+
+let difficulty = 'Beginner';
 
 let clef = 'treble';
+
 let chordMode = false;
+
 let rhythmMode = false;
-let currentKey = 'C Major'; // The user-selected scale name
+
+let currentKey = 'C';
+
+
 
 let sequence = [];
+
 let total = 0, correct = 0;
+
 let streak = 0, best = 0;
 
-// All keys on the circle of fifths (sharps clockwise) with their root and scale notes
-// Note Pool defines the range of available notes for training in that key.
-const scales = [
-    // Order 1 (0 sharps)
-    { name: 'C Major', vexKey: 'C', root: 'c/4',
-      notes: ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'] },
 
-    // Order 2 (1 sharp)
-    { name: 'G Major', vexKey: 'G', root: 'g/4',
-      notes: ['g/3', 'a/3', 'b/3', 'c/4', 'd/4', 'e/4', 'f#/4', 'g/4', 'a/4', 'b/4', 'c/5'] },
 
-    // Order 3 (2 sharps)
-    { name: 'D Major', vexKey: 'D', root: 'd/4',
-      notes: ['d/4', 'e/4', 'f#/4', 'g/4', 'a/4', 'b/4', 'c#/5', 'd/5'] },
+const ranges = {
 
-    // Order 4 (3 sharps)
-    { name: 'A Major', vexKey: 'A', root: 'a/4',
-      notes: ['a/3', 'b/3', 'c#/4', 'd/4', 'e/4', 'f#/4', 'g#/4', 'a/4', 'b/4', 'c#/5'] },
+    Beginner: {
 
-    // Order 5 (4 sharps)
-    { name: 'E Major', vexKey: 'E', root: 'e/4',
-      notes: ['e/3', 'f#/3', 'g#/3', 'a/3', 'b/3', 'c#/4', 'd#/4', 'e/4', 'f#/4', 'g#/4'] },
+        keys: ['C'],
 
-    // Order 6 (5 sharps)
-    { name: 'B Major', vexKey: 'B', root: 'b/3',
-      notes: ['b/3', 'c#/4', 'd#/4', 'e/4', 'f#/4', 'g#/4', 'a#/4', 'b/4'] },
+        notes: ['c/4','d/4','e/4','f/4','g/4']
 
-    // Order 7 (6 sharps)
-    { name: 'F# Major', vexKey: 'F#', root: 'f#/4',
-      notes: ['f#/4', 'g#/4', 'a#/4', 'b/4', 'c#/5', 'd#/5', 'e#/5', 'f#/5'] },
+    },
 
-    // Order 8 (7 sharps)
-    { name: 'C# Major', vexKey: 'C#', root: 'c#/4',
-      notes: ['c#/4', 'd#/4', 'e#/4', 'f#/4', 'g#/4', 'a#/4', 'b#/4', 'c#/5'] }
-];
+    Intermediate: {
 
-function populateScaleSelect() {
-    const select = document.getElementById('scale-select');
-    scales.forEach(scale => {
-        const option = document.createElement('option');
-        option.value = scale.name;
-        option.textContent = scale.name;
-        select.appendChild(option);
-    });
-}
+        keys: ['G', 'F', 'D'], // 1#, 1b, 2#
 
-function getNotePool(scaleName) {
-    const scale = scales.find(s => s.name === scaleName);
-    return scale ? scale.notes : scales[0].notes; // Default to C Major
-}
+        notes: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5']
 
-function getVexKey(scaleName) {
-    const scale = scales.find(s => s.name === scaleName);
-    return scale ? scale.vexKey : scales[0].vexKey;
-}
+    },
+
+    Advanced: {
+
+        keys: ['A', 'E', 'Eb', 'B'], // 3#, 4#, 3b, 5# (more complex keys)
+
+        notes: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5']
+
+    }
+
+};
+
+
 
 function randomNote() {
-    const pool = getNotePool(currentKey);
-    // Use the pool for both single notes and chord components
+
+    const pool = ranges[difficulty].notes;
+
     return pool[Math.floor(Math.random() * pool.length)];
+
 }
+
+
 
 function generateItem() {
-    // For now, in chord mode, generate two random notes from the pool.
-    // A more advanced version would generate a valid triad or seventh chord.
-    const note1 = randomNote();
-    let note2 = randomNote();
-    // Simple check to ensure note2 is different from note1 in chord mode (optional)
-    while (chordMode && note1 === note2) {
-        note2 = randomNote();
-    }
 
-    return chordMode ? [note1, note2] : [note1];
+    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
+
 }
 
-function setScale(scaleName) {
-    currentKey = scaleName;
-    start();
-}
+
 
 function start() {
-    // Reset stats if a new key is selected
-    if (total > 0) {
-        total = 0; correct = 0; streak = 0; updateStats();
-    }
 
     sequence = [];
-    for (let i = 0; i < NOTES_VISIBLE; i++) {
-        sequence.push(generateItem());
-    }
+
+    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
+
+    
+
+    const keys = ranges[difficulty].keys;
+
+    currentKey = keys[Math.floor(Math.random() * keys.length)];
+
+    
 
     drawFixedStave();
+
     drawNotes();
+
 }
 
+
+
 /**
+
  * Draws the Clef, Key, and Time Signature once in the fixed area.
+
  */
+
 function drawFixedStave() {
+
     const el = document.getElementById('fixed-stave');
+
     el.innerHTML = '';
 
+    
+
     const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+
     r.resize(FIXED_STAVE_WIDTH, 180);
+
     const ctx = r.getContext();
 
-    // The Vex.Flow key signature string (e.g., 'C', 'G', 'D')
-    const vexKey = getVexKey(currentKey);
+
+
+    // Create a narrow stave for the fixed elements
 
     const stave = new VF.Stave(0, 40, FIXED_STAVE_WIDTH);
+
     stave.addClef(clef)
+
           .addTimeSignature("4/4")
-          .addKeySignature(vexKey);
+
+          .addKeySignature(currentKey); 
+
     stave.setContext(ctx).draw();
+
 }
+
+
 
 /**
+
  * Draws only the notes on the scrolling area.
+
  */
+
 function drawNotes() {
+
     const el = document.getElementById('notation');
 
-    el.innerHTML = '';
-    el.style.transform = 'translateX(0)';
-    el.style.transition = 'none';
+    
 
-    const width = NOTES_VISIBLE * NOTE_WIDTH + 50;
+    el.innerHTML = '';
+
+    el.style.transform = 'translateX(0)'; // Reset transformation to 0
+
+    el.style.transition = 'none'; // FIX: Ensure reset is instantaneous (no bounce)
+
+
+
+    const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
+
+    const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
+
+    
 
     const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+
     r.resize(width, 180);
+
     const ctx = r.getContext();
 
-    // Start the staff line slightly to the left to overlap the fixed staff
-    const stave = new VF.Stave(-5, 40, width + 5);
+
+
+    // FIX: Start the staff line slightly to the left (e.g., at X=-5) 
+
+    // to overlap the end of the fixed staff and ensure a continuous line.
+
+    const stave = new VF.Stave(-5, 40, width + 5); 
+
     stave.setContext(ctx).draw();
 
+    
+
     const durationType = rhythmMode ? '8' : 'q';
-    const vexKey = getVexKey(currentKey);
+
+    
 
     const notes = sequence.map((keys, i) => {
-        const n = new VF.StaveNote({
-            keys,
-            duration: durationType,
-            clef
-        }).addAccidentals(keys.map(() => new VF.Accidental(""))); // Placeholder: Accidentals are handled by key signature automatically in VexFlow
 
-        // Apply key signature to notes
-        n.setKeySignature(vexKey);
+        const n = new VF.StaveNote({
+
+            keys,
+
+            duration: durationType, 
+
+            clef
+
+        });
 
         n.setAttribute('data-i', i);
+
         return n;
+
     });
 
-    const voice = new VF.Voice({
-        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1),
-        beat_value: 4
+
+
+    const voice = new VF.Voice({ 
+
+        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1), 
+
+        beat_value: 4 
+
     });
+
+    
 
     voice.addTickables(notes);
+
     new VF.Formatter().joinVoices([voice]).format([voice], width);
+
     voice.draw(ctx, stave);
 
+
+
     highlight();
+
 }
+
+
+
 
 
 function highlight() {
-    // Reset all notes to default color
+
+    // We only need to query elements within the notation area
+
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
 
+    
+
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
+
     if (!targetNoteElement) return;
 
-    // Highlight the target note in the success color
+    
+
     targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
+
 }
+
+
 
 function correctNote() {
+
     const el = document.getElementById('notation');
 
+    
+
+    // FIX: Apply the transition *before* the transform for a smooth start
+
     el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
+
+
+
+    // 1. Start the smooth slide animation (only moving the notes container)
+
     el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
 
+
+
     setTimeout(() => {
+
+        // 2. Update the internal sequence
+
         sequence.shift();
+
         sequence.push(generateItem());
 
+        
+
+        // 3. Update stats
+
         correct++; streak++; best = Math.max(best, streak);
+
         updateStats();
 
-        drawNotes();
+        
 
-    }, ANIMATION_DURATION);
+        // 4. Redraw the scrolling notes (instant reset to position 0)
+
+        drawNotes(); 
+
+        
+
+    }, ANIMATION_DURATION); 
+
 }
+
+
 
 function wrongNote() {
+
     const windowEl = document.getElementById('notation-window');
+
     windowEl.classList.add('wrong-flash');
+
     streak = 0;
-    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300);
+
+    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); 
+
 }
+
+
 
 function updateStats() {
+
     total++;
+
     document.getElementById('accuracy').innerText =
+
         (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
+
     document.getElementById('streak').innerText = streak;
+
     document.getElementById('best').innerText = best;
+
 }
+
+
 
 function midiToVex(m) {
+
     const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    // Logic to determine if sharp/natural is needed based on key signature is complex,
-    // VexFlow handles this *visually* on the staff. Here, we just get the full note name.
-    const noteName = n[m%12];
-    const octave = Math.floor(m/12)-1;
-    // VexFlow note string format: 'key/octave' (e.g., 'c/4')
-    // We remove the '#' for natural notes, but keep it for black keys.
-    return `${noteName.replace('#', '')}${noteName.includes('#') ? '#' : ''}/${octave}`;
+
+    return `${n[m%12]}${m%12 === 1 || m%12 === 3 || m%12 === 6 || m%12 === 8 || m%12 === 10 ? '#' : ''}/${Math.floor(m/12)-1}`;
+
 }
 
-const pressedKeys = new Set();
+
+
+const pressedKeys = new Set(); 
+
+
 
 navigator.requestMIDIAccess().then(m => {
+
     for (let input of m.inputs.values()) {
+
         input.onmidimessage = e => {
+
             const status = e.data[0];
+
             const midiNote = e.data[1];
+
             const velocity = e.data[2];
-            const playedVex = midiToVex(midiNote); // e.g., 'c/4' or 'c#/4'
+
+            const playedVex = midiToVex(midiNote);
+
+
 
             if (status === 144 && velocity > 0) { // Note On
+
                 pressedKeys.add(playedVex);
 
-                // Get the set of notes that must be played for a correct match (sequence[0] is the target note/chord)
-                const targetNotes = new Set(sequence[0]);
+                
 
                 if (chordMode) {
-                    // Chord Mode Logic: Correct if *all* target notes are pressed and *only* target notes are pressed.
-                    const allTargetNotesPressed = Array.from(targetNotes).every(note => pressedKeys.has(note));
-                    const correctNumberOfNotes = (targetNotes.size === pressedKeys.size);
 
-                    if (allTargetNotesPressed && correctNumberOfNotes) {
+                    const targetChord = sequence[0];
+
+                    const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
+
+
+
+                    if (allMatch) {
+
                         correctNote();
-                        pressedKeys.clear();
-                    } else if (!targetNotes.has(playedVex)) {
-                        // Played a wrong note (a note outside the target chord)
+
+                        pressedKeys.clear(); 
+
+                    } else if (!targetChord.includes(playedVex)) {
+
                         wrongNote();
-                        updateStats();
-                        pressedKeys.clear(); // Clear to force restart of chord attempt
+
+                        updateStats(); 
+
                     }
-                    // If a correct note is played, but not all notes of the chord are played yet, do nothing (wait for more keys).
 
                 } else {
-                    // Single Note Mode Logic
-                    total++; // Count every note on in single mode as an attempt
-                    if (targetNotes.has(playedVex)) {
+
+                    total++; 
+
+                    if (sequence[0].includes(playedVex)) {
+
                         correctNote();
+
                     } else {
+
                         wrongNote();
+
                     }
+
                     updateStats();
+
                 }
+
             } else if (status === 128 || (status === 144 && velocity === 0)) { // Note Off
+
                 pressedKeys.delete(playedVex);
+
             }
+
         };
+
     }
+
 });
 
-// --- UI EVENT HANDLERS ---
+
+
 document.getElementById('clefToggle').onchange = e => {
+
     clef = e.target.checked ? 'bass' : 'treble';
-    start();
+
+    start(); 
+
 };
+
 document.getElementById('chordToggle').onchange = e => {
+
     chordMode = e.target.checked;
+
     start();
+
 };
+
 document.getElementById('rhythmToggle').onchange = e => {
+
     rhythmMode = e.target.checked;
+
     start();
-};
-document.getElementById('darkModeToggle').onchange = e => {
-    document.body.classList.toggle('dark-mode', e.target.checked);
+
 };
 
-// Initialization
-populateScaleSelect();
-start();
 
-// Make sure the dropdown reflects the initial C Major choice
-document.getElementById('scale-select').value = 'C Major';
+
+function setDifficulty(d, event) {
+
+    difficulty = d;
+
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+
+    if(event && event.target) {
+
+        event.target.classList.add('active');
+
+    }
+
+    start();
+
+}
+
+
 
 function exportStats() {
+
     const stats = {
-        scale: currentKey,
+
+        difficulty: difficulty,
+
         clef: clef,
+
         chordMode: chordMode,
+
         rhythmMode: rhythmMode,
+
         totalAttempts: total,
+
         totalCorrect: correct,
+
         accuracy: (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%',
+
         currentStreak: streak,
+
         bestStreak: best,
+
         exportTime: new Date().toISOString()
+
     };
 
+
+
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
+
     const downloadAnchorNode = document.createElement('a');
+
     downloadAnchorNode.setAttribute("href", dataStr);
+
     downloadAnchorNode.setAttribute("download", "MelodyFlow_Stats.json");
+
     document.body.appendChild(downloadAnchorNode);
+
     downloadAnchorNode.click();
+
     downloadAnchorNode.remove();
+
 }
+
+
+
+start();
+
 </script>
 
+
+
 </body>
+
 </html>
