@@ -3,163 +3,145 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.3 - Seamless Stave</title>
+<title>MelodyFlow v5.5 - Seamless Stave with Scale Selector</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
 <style>
 :root {
-    --primary: #6750A4;
-    --surface: #F7F2FA;
-    --background: #FEF7FF;
-    --outline: #79747E;
-    --target-note: #00A96B;
-    --default-note: #6750A4;
-    --wrong-flash: #F2B8B5;
+    --primary: #6750A4;
+    --surface: #F7F2FA;
+    --background: #FEF7FF;
+    --outline: #79747E;
+    --target-note: #00A96B;
+    --default-note: #6750A4;
+    --wrong-flash: #F2B8B5;
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, sans-serif;
-    background: var(--background);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: var(--background);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
 }
 
 .container {
-    background: var(--surface);
-    padding: 32px;
-    border-radius: 28px;
-    width: 95%;
-    max-width: 960px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    background: var(--surface);
+    padding: 32px;
+    border-radius: 28px;
+    width: 95%;
+    max-width: 960px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
 
 h1 { color: var(--primary); margin-bottom: 10px; }
 
 .controls, .toggles {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 button {
-    border: 1px solid var(--outline);
-    background: transparent;
-    padding: 8px 18px;
-    border-radius: 18px;
-    cursor: pointer;
+    border: 1px solid var(--outline);
+    background: transparent;
+    padding: 8px 18px;
+    border-radius: 18px;
+    cursor: pointer;
 }
 
 button.active {
-    background: var(--primary);
-    color: white;
+    background: var(--primary);
+    color: white;
 }
 
 .toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
 }
 
 .toggle input {
-    appearance: none;
-    width: 34px;
-    height: 18px;
-    background: #bbb;
-    border-radius: 9px;
-    position: relative;
+    appearance: none;
+    width: 34px;
+    height: 18px;
+    background: #bbb;
+    border-radius: 9px;
+    position: relative;
 }
 
 .toggle input:checked { background: var(--primary); }
 
 .toggle input::after {
-    content: '';
-    width: 14px;
-    height: 14px;
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform .2s;
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform .2s;
 }
 
 .toggle input:checked::after {
-    transform: translateX(16px);
+    transform: translateX(16px);
 }
 
 #notation-window {
-    width: 760px;
-    height: 180px;
-    margin: 20px auto;
-    overflow: hidden;
-    border-radius: 16px;
-    border: 2px solid var(--primary);
-    position: relative;
-    display: flex;
+    width: 760px;
+    height: 180px;
+    margin: 20px auto;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 2px solid var(--primary);
+    position: relative;
+    display: flex;
 }
 
-/* New element for the non-moving part */
 #fixed-stave {
-    width: 150px; 
-    height: 180px;
-    flex-shrink: 0; 
-    position: relative;
-    z-index: 10; 
-    background-color: var(--surface); 
+    width: 150px; 
+    height: 180px;
+    flex-shrink: 0; 
+    position: relative;
+    z-index: 10; 
+    background-color: var(--surface); 
 }
 
-/* The element that holds the scrolling notes */
 #notation {
-    /* Use a negative margin to visually overlap the staves and hide the gap */
-    margin-left: -5px; 
-    width: calc(760px - 150px + 5px); /* Adjusted width to compensate for negative margin */
-    height: 180px;
-    position: relative;
+    margin-left: -5px; 
+    width: calc(760px - 150px + 5px);
+    height: 180px;
+    position: relative;
 }
 
-
-/* Reduced shake animation and targeted to notation area */
 .wrong-flash {
-    animation: shake .3s;
-    background-color: var(--wrong-flash); 
-    border-color: #E35050 !important;
+    animation: shake .3s;
+    background-color: var(--wrong-flash); 
+    border-color: #E35050 !important;
 }
 
 @keyframes shake {
-    0% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    50% { transform: translateX(2px); }
-    75% { transform: translateX(-2px); }
-    100% { transform: translateX(0); }
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    50% { transform: translateX(2px); }
+    75% { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
 }
 
 .stats {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    font-size: 0.85rem;
-    margin-top: 15px;
-}
-
-/* FIX: Ensure the scale select dropdown is styled correctly and aligns with other controls */
-#scaleSelect {
-    padding: 8px 12px;
-    border-radius: 18px;
-    border: 1px solid var(--outline);
-    background: white;
-    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
     font-size: 0.85rem;
-    height: 34px;
-    box-sizing: border-box; 
-    /* The height/box-sizing ensures it aligns vertically with the buttons/toggles */
+    margin-top: 15px;
 }
 </style>
 </head>
@@ -170,158 +152,70 @@ button.active {
 <h1>MelodyFlow</h1>
 
 <div class="controls">
-    <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
-    <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
-    <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
+    <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
+    <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
+    <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
 </div>
 
 <div class="toggles">
-    <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
-    <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
-    <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
+    <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
+    <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
+    <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
     
-    <select id="scaleSelect">
-        <optgroup label="Major Scales (Circle of Fifths)">
-            <option value="CMajor" data-keysig="C">C Major</option>
-            <option value="GMajor" data-keysig="G">G Major (1#)</option>
-            <option value="DMajor" data-keysig="D">D Major (2#)</option>
-            <option value="AMajor" data-keysig="A">A Major (3#)</option>
-            <option value="EMajor" data-keysig="E">E Major (4#)</option>
-            <option value="BMajor" data-keysig="B">B Major (5#)</option>
-            <option value="FsMajor" data-keysig="F#">F# Major (6#)</option>
-            <option value="CsMajor" data-keysig="C#">C# Major (7#)</option>
-        </optgroup>
-        <optgroup label="Minor Scales (Relative)">
-            <option value="AMinor" data-keysig="Am">A Minor</option>
-            <option value="EMinor" data-keysig="Em">E Minor (1#)</option>
-            <option value="BMinor" data-keysig="Bm">B Minor (2#)</option>
-            <option value="FsMinor" data-keysig="F#m">F# Minor (3#)</option>
-            <option value="CsMinor" data-keysig="C#m">C# Minor (4#)</option>
-            <option value="GsMinor" data-keysig="G#m">G# Minor (5#)</option>
-            <option value="DsMinor" data-keysig="D#m">D# Minor (6#)</option>
-            <option value="AsMinor" data-keysig="A#m">A# Minor (7#)</option>
-        </optgroup>
-    </select>
-        <button onclick="exportStats()">Export Stats 📊</button>
+    <!-- Scale selector -->
+    <label>
+        Scale: 
+        <select id="scaleSelect"></select>
+    </label>
+
+    <button onclick="exportStats()">Export Stats 📊</button>
 </div>
 
 <div id="notation-window">
-    <div id="fixed-stave"></div>
-    <div id="notation"></div>
+    <div id="fixed-stave"></div>
+    <div id="notation"></div>
 </div>
 
 <div class="stats">
-    <div>Accuracy: <span id="accuracy">100%</span></div>
-    <div>Streak: <span id="streak">0</span></div>
-    <div>Best: <span id="best">0</span></div>
+    <div>Accuracy: <span id="accuracy">100%</span></div>
+    <div>Streak: <span id="streak">0</span></div>
+    <div>Best: <span id="best">0</span></div>
 </div>
 </div>
 
 <script>
 const VF = Vex.Flow;
 const NOTES_VISIBLE = 8;
-const NOTE_WIDTH = 100; // Estimated width of a note block for sliding
-const FIXED_STAVE_WIDTH = 150; // Must match CSS
-const ANIMATION_DURATION = 300; // ms (0.3s)
+const NOTE_WIDTH = 100; 
+const FIXED_STAVE_WIDTH = 150; 
+const ANIMATION_DURATION = 300; 
 
 let difficulty = 'Beginner';
 let clef = 'treble';
 let chordMode = false;
 let rhythmMode = false;
-let currentKey = 'C'; // Key signature (e.g., 'C', 'G', 'Am', 'F#m')
-let currentScaleNotes = []; // Notes available for the current scale, across all octaves
+let currentKey = 'C';
 
 let sequence = [];
 let total = 0, correct = 0;
 let streak = 0, best = 0;
 
-// All natural notes on the staff (A3 to F5) for filtering.
-// Middle C is c/4. This covers a common range for treble clef.
-const ALL_NOTES = [
-    'a/3','a#/3','b/3',
-    'c/4','c#/4','d/4','d#/4','e/4','f/4','f#/4','g/4','g#/4','a/4','a#/4','b/4',
-    'c/5','c#/5','d/5','d#/5',
-    'e/5', 'f/5'
-];
-
-// Scale Definitions: Base notes for MIDI matching
-const SCALES = {
-    // --- MAJOR SCALES (Circle of Fifths - Sharps) ---
-    CMajor: { keysig: 'C', baseNotes: ['c','d','e','f','g','a','b'] },
-    GMajor: { keysig: 'G', baseNotes: ['g','a','b','c','d','e','f#'] }, 
-    DMajor: { keysig: 'D', baseNotes: ['d','e','f#','g','a','b','c#'] },
-    AMajor: { keysig: 'A', baseNotes: ['a','b','c#','d','e','f#','g#'] },
-    EMajor: { keysig: 'E', baseNotes: ['e','f#','g#','a','b','c#','d#'] },
-    BMajor: { keysig: 'B', baseNotes: ['b','c#','d#','e','f#','g#','a#'] },
-    FsMajor: { keysig: 'F#', baseNotes: ['f#','g#','a#','b','c#','d#','e#'] },
-    CsMajor: { keysig: 'C#', baseNotes: ['c#','d#','e#','f#','g#','a#','b#'] },
-
-    // --- MINOR SCALES (Relative to Major) ---
-    AMinor: { keysig: 'Am', baseNotes: ['a','b','c','d','e','f','g'] },
-    EMinor: { keysig: 'Em', baseNotes: ['e','f#','g','a','b','c','d'] },
-    BMinor: { keysig: 'Bm', baseNotes: ['b','c#','d','e','f#','g','a'] },
-    FsMinor: { keysig: 'F#m', baseNotes: ['f#','g#','a','b','c#','d','e'] },
-    CsMinor: { keysig: 'C#m', baseNotes: ['c#','d#','e','f#','g#','a','b'] },
-    GsMinor: { keysig: 'G#m', baseNotes: ['g#','a#','b','c#','d#','e','f#'] },
-    DsMinor: { keysig: 'D#m', baseNotes: ['d#','e#','f#','g#','a#','b','c#'] },
-    AsMinor: { keysig: 'A#m', baseNotes: ['a#','b#','c#','d#','e#','f#','g#'] }
+// Scales from Circle of Fifths
+const scales = {
+    Major: ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'],
+    Minor: ['A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'Bb', 'F', 'C', 'G', 'D']
 };
 
-
-// Difficulty ranges, used to constrain the OCTAVE range.
-const difficultyRanges = {
-    Beginner: { minOctave: 3, maxOctave: 4 }, // A3 to G4
-    Intermediate: { minOctave: 3, maxOctave: 5 }, // A3 to C5
-    Advanced: { minOctave: 3, maxOctave: 5 } // F3 to D5
+// Difficulty ranges
+const ranges = {
+    Beginner: { keys: ['C'], notes: ['c/4','d/4','e/4','f/4','g/4'] },
+    Intermediate: { keys: ['G', 'F', 'D'], notes: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'] },
+    Advanced: { keys: ['A', 'E', 'Eb', 'B'], notes: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5'] }
 };
-
-
-/**
- * Filters the ALL_NOTES array to only include notes from the selected scale
- * and within the current difficulty range.
- */
-function getNotesForCurrentSettings() {
-    const scaleName = document.getElementById('scaleSelect').value;
-    const scaleData = SCALES[scaleName];
-    if (!scaleData) {
-        currentKey = 'C';
-        currentScaleNotes = ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'];
-        return currentScaleNotes;
-    }
-
-    const range = difficultyRanges[difficulty];
-    
-    // We only generate the *natural* note names, relying on VexFlow's KeySignature to render accidentals.
-    // This simplifies the visual notation significantly.
-    const allowedNotes = ALL_NOTES.filter(fullNote => {
-        const parts = fullNote.split('/');
-        const noteName = parts[0].replace(/[#b]/g, ''); // 'c', 'd', 'e', etc.
-        const octave = parseInt(parts[1]);
-
-        if (octave < range.minOctave || octave > range.maxOctave) return false;
-        
-        // Check if the note letter is one of the 7 scale degrees (e.g., 'c' is in C Major).
-        const baseNoteLetters = scaleData.baseNotes.map(n => n.replace(/[#b]/g, ''));
-        
-        // Exclude explicit accidentals for generation to rely on the key signature
-        if (baseNoteLetters.includes(noteName) && !fullNote.includes('#')) {
-             return true;
-        }
-
-        return false;
-    });
-
-    currentScaleNotes = allowedNotes;
-    currentKey = scaleData.keysig;
-
-    return currentScaleNotes;
-}
-
 
 function randomNote() {
-    const pool = currentScaleNotes;
-    if (pool.length === 0) return 'c/4';
-    return pool[Math.floor(Math.random() * pool.length)];
+    const pool = ranges[difficulty].notes;
+    return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function generateItem() {
@@ -329,223 +223,167 @@ function generateItem() {
 }
 
 function start() {
-    // 1. Determine the allowed notes based on settings
-    getNotesForCurrentSettings();
-    
-    // 2. Regenerate the sequence
-    sequence = [];
-    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
-    
-    drawFixedStave();
-    drawNotes();
+    sequence = [];
+    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
+    drawFixedStave();
+    drawNotes();
 }
 
-/**
- * Draws the Clef, Key, and Time Signature once in the fixed area.
- */
+// Draw clef, key, time signature
 function drawFixedStave() {
-    const el = document.getElementById('fixed-stave');
-    el.innerHTML = '';
-    
-    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(FIXED_STAVE_WIDTH, 180);
-    const ctx = r.getContext();
-
-    // Create a narrow stave for the fixed elements
-    const stave = new VF.Stave(0, 40, FIXED_STAVE_WIDTH);
-    stave.addClef(clef)
-          .addTimeSignature("4/4")
-          .addKeySignature(currentKey); 
-    stave.setContext(ctx).draw();
+    const el = document.getElementById('fixed-stave');
+    el.innerHTML = '';
+    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+    r.resize(FIXED_STAVE_WIDTH, 180);
+    const ctx = r.getContext();
+    const stave = new VF.Stave(0, 40, FIXED_STAVE_WIDTH);
+    stave.addClef(clef).addTimeSignature("4/4").addKeySignature(currentKey);
+    stave.setContext(ctx).draw();
 }
 
-/**
- * Draws only the notes on the scrolling area.
- */
+// Draw only notes in scrolling area
 function drawNotes() {
-    const el = document.getElementById('notation');
-    
-    el.innerHTML = '';
-    el.style.transform = 'translateX(0)'; 
-    el.style.transition = 'none'; 
+    const el = document.getElementById('notation');
+    el.innerHTML = '';
+    el.style.transform = 'translateX(0)';
+    el.style.transition = 'none';
+    const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
+    const width = NOTES_VISIBLE * NOTE_WIDTH + 50;
+    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+    r.resize(width, 180);
+    const ctx = r.getContext();
+    const stave = new VF.Stave(-5, 40, width + 5); 
+    stave.setContext(ctx).draw();
 
-    const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
-    const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
-    
-    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(width, 180);
-    const ctx = r.getContext();
+    const durationType = rhythmMode ? '8' : 'q';
+    const notes = sequence.map((keys, i) => {
+        const n = new VF.StaveNote({ keys, duration: durationType, clef });
+        n.setAttribute('data-i', i);
+        return n;
+    });
 
-    const stave = new VF.Stave(-5, 40, width + 5); 
-    stave.setContext(ctx).draw();
-    
-    const durationType = rhythmMode ? '8' : 'q';
-    
-    const notes = sequence.map((keys, i) => {
-        const n = new VF.StaveNote({
-            keys,
-            duration: durationType, 
-            clef
-        });
-        n.setAttribute('data-i', i);
-        return n;
-    });
-
-    const voice = new VF.Voice({ 
-        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1), 
-        beat_value: 4 
-    });
-    
-    voice.addTickables(notes);
-    new VF.Formatter().joinVoices([voice]).format([voice], width);
-    voice.draw(ctx, stave);
-
-    highlight();
+    const voice = new VF.Voice({ num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1), beat_value: 4 });
+    voice.addTickables(notes);
+    new VF.Formatter().joinVoices([voice]).format([voice], width);
+    voice.draw(ctx, stave);
+    highlight();
 }
-
 
 function highlight() {
-    document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
-    
-    const targetNoteElement = document.querySelector('#notation [data-i="0"]');
-    if (!targetNoteElement) return;
-    
-    targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
+    document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
+    const targetNoteElement = document.querySelector('#notation [data-i="0"]');
+    if (!targetNoteElement) return;
+    targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
 }
 
 function correctNote() {
-    const el = document.getElementById('notation');
-    
-    el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
-
-    el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
-
-    setTimeout(() => {
-        sequence.shift();
-        sequence.push(generateItem());
-        
-        correct++; streak++; best = Math.max(best, streak);
-        updateStats();
-        
-        drawNotes(); 
-        
-    }, ANIMATION_DURATION); 
+    const el = document.getElementById('notation');
+    el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
+    el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
+    setTimeout(() => {
+        sequence.shift();
+        sequence.push(generateItem());
+        correct++; streak++; best = Math.max(best, streak);
+        updateStats();
+        drawNotes();
+    }, ANIMATION_DURATION); 
 }
 
 function wrongNote() {
-    const windowEl = document.getElementById('notation-window');
-    windowEl.classList.add('wrong-flash');
-    streak = 0;
-    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); 
+    const windowEl = document.getElementById('notation-window');
+    windowEl.classList.add('wrong-flash');
+    streak = 0;
+    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); 
 }
 
 function updateStats() {
-    total++;
-    document.getElementById('accuracy').innerText =
-        (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
-    document.getElementById('streak').innerText = streak;
-    document.getElementById('best').innerText = best;
+    total++;
+    document.getElementById('accuracy').innerText = (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
+    document.getElementById('streak').innerText = streak;
+    document.getElementById('best').innerText = best;
 }
 
 function midiToVex(m) {
-    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    return `${n[m%12]}${m%12 === 1 || m%12 === 3 || m%12 === 6 || m%12 === 8 || m%12 === 10 ? '#' : ''}/${Math.floor(m/12)-1}`;
+    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+    return `${n[m%12]}/${Math.floor(m/12)-1}`;
 }
 
-const pressedKeys = new Set(); 
-
+const pressedKeys = new Set();
 navigator.requestMIDIAccess().then(m => {
-    for (let input of m.inputs.values()) {
-        input.onmidimessage = e => {
-            const status = e.data[0];
-            const midiNote = e.data[1];
-            const velocity = e.data[2];
-            const playedVex = midiToVex(midiNote);
-
-            if (status === 144 && velocity > 0) { // Note On
-                pressedKeys.add(playedVex);
-                
-                if (chordMode) {
-                    const targetChord = sequence[0];
-                    const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
-
-                    if (allMatch) {
-                        correctNote();
-                        pressedKeys.clear(); 
-                    } else if (!targetChord.includes(playedVex)) {
-                        wrongNote();
-                        updateStats(); 
-                    }
-                } else {
-                    if (sequence[0].includes(playedVex)) {
-                        total++; 
-                        correctNote();
-                    } else {
-                        total++; 
-                        wrongNote();
-                    }
-                    updateStats();
-                }
-            } else if (status === 128 || (status === 144 && velocity === 0)) { // Note Off
-                pressedKeys.delete(playedVex);
-            }
-        };
-    }
-}, (err) => {
-    const midiWarning = document.createElement('div');
-    midiWarning.style.color = 'red';
-    midiWarning.style.marginTop = '10px';
-    midiWarning.innerText = '⚠️ MIDI access failed. This application requires a MIDI input device to function.';
-    document.getElementById('card').appendChild(midiWarning);
+    for (let input of m.inputs.values()) {
+        input.onmidimessage = e => {
+            const status = e.data[0];
+            const midiNote = e.data[1];
+            const velocity = e.data[2];
+            const playedVex = midiToVex(midiNote);
+            if (status === 144 && velocity > 0) {
+                pressedKeys.add(playedVex);
+                if (chordMode) {
+                    const targetChord = sequence[0];
+                    const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
+                    if (allMatch) { correctNote(); pressedKeys.clear(); }
+                    else if (!targetChord.includes(playedVex)) { wrongNote(); updateStats(); }
+                } else {
+                    total++;
+                    if (sequence[0].includes(playedVex)) { correctNote(); }
+                    else { wrongNote(); }
+                    updateStats();
+                }
+            } else if (status === 128 || (status === 144 && velocity === 0)) { pressedKeys.delete(playedVex); }
+        };
+    }
 });
 
-document.getElementById('clefToggle').onchange = e => {
-    clef = e.target.checked ? 'bass' : 'treble';
-    start(); 
-};
-document.getElementById('chordToggle').onchange = e => {
-    chordMode = e.target.checked;
-    start();
-};
-document.getElementById('rhythmToggle').onchange = e => {
-    rhythmMode = e.target.checked;
-    start();
-};
-document.getElementById('scaleSelect').onchange = start; 
+document.getElementById('clefToggle').onchange = e => { clef = e.target.checked ? 'bass' : 'treble'; start(); };
+document.getElementById('chordToggle').onchange = e => { chordMode = e.target.checked; start(); };
+document.getElementById('rhythmToggle').onchange = e => { rhythmMode = e.target.checked; start(); };
 
 function setDifficulty(d, event) {
-    difficulty = d;
-    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-    if(event && event.target) {
-        event.target.classList.add('active');
-    }
-    start();
+    difficulty = d;
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    if(event && event.target) { event.target.classList.add('active'); }
+    start();
 }
 
 function exportStats() {
-    const stats = {
-        difficulty: difficulty,
-        scale: document.getElementById('scaleSelect').value,
-        clef: clef,
-        chordMode: chordMode,
-        rhythmMode: rhythmMode,
-        totalAttempts: total,
-        totalCorrect: correct,
-        accuracy: (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%',
-        currentStreak: streak,
-        bestStreak: best,
-        exportTime: new Date().toISOString()
-    };
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "MelodyFlow_Stats.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+    const stats = {
+        difficulty: difficulty,
+        clef: clef,
+        chordMode: chordMode,
+        rhythmMode: rhythmMode,
+        scale: currentKey,
+        totalAttempts: total,
+        totalCorrect: correct,
+        accuracy: (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%',
+        currentStreak: streak,
+        bestStreak: best,
+        exportTime: new Date().toISOString()
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "MelodyFlow_Stats.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
 }
 
+// Populate scale dropdown
+function populateScaleDropdown() {
+    const select = document.getElementById('scaleSelect');
+    select.innerHTML = '';
+    const majorGroup = document.createElement('optgroup');
+    majorGroup.label = 'Major';
+    scales.Major.forEach(scale => { const option = document.createElement('option'); option.value = scale; option.innerText = scale; majorGroup.appendChild(option); });
+    select.appendChild(majorGroup);
+    const minorGroup = document.createElement('optgroup');
+    minorGroup.label = 'Minor';
+    scales.Minor.forEach(scale => { const option = document.createElement('option'); option.value = scale; option.innerText = scale; minorGroup.appendChild(option); });
+    select.appendChild(minorGroup);
+    select.value = currentKey;
+    select.onchange = e => { currentKey = e.target.value; start(); };
+}
+populateScaleDropdown();
 start();
 </script>
 
