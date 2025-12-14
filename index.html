@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v9.0 - All Major & Minor Scales</title>
+<title>MelodyFlow v10.0 - Notes Display Fix</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -258,7 +258,6 @@ const NOTES_VISIBLE = 8;
 const NOTE_WIDTH = 100;
 const FIXED_STAVE_WIDTH = 150;
 const ANIMATION_DURATION = 300; // ms (0.3s)
-const START_MIDI_NOTE = 60; // Middle C (C4)
 
 let currentScaleName = 'C Major';
 let clef = 'treble';
@@ -273,7 +272,7 @@ let streak = 0, best = 0;
 // MIDI Note Name Mapping (0-11)
 const MIDI_TO_NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// VexFlow Key Signatures for common keys
+// VexFlow Key Signatures mapping
 const KEY_SIGNATURES = {
     // Majors
     'C': 'C', 'G': 'G', 'D': 'D', 'A': 'A', 'E': 'E', 'B': 'B', 'F#': 'F#',
@@ -284,33 +283,30 @@ const KEY_SIGNATURES = {
 };
 
 /**
- * Generates VexFlow note strings (e.g., ['c/4', 'd/4', ...]) from a list of MIDI intervals.
- * This is crucial for fixing the "no notes showing" bug by ensuring valid strings.
+ * Generates VexFlow note strings from a list of MIDI intervals, guaranteeing notes
+ * are within the C4-C5 range for reliable drawing.
  * @param {number} rootMidi - The MIDI number of the root note (e.g., 60 for C4).
  * @param {number[]} intervals - List of semitones from the root.
  * @returns {string[]} VexFlow note strings.
  */
 function generateVexNotes(rootMidi, intervals) {
-    // Only use a subset of the scale notes to keep them in a comfortable singing/sight-reading range (C4 to C5)
     const minMidi = 60; // C4
-    const maxMidi = 72; // C5
+    const maxMidi = 72; // C5 (Exclusive)
 
     let notes = intervals.map(interval => {
         const midi = rootMidi + interval;
         
-        // This loop keeps the note within the C4-C5 range by shifting octaves
         let shiftedMidi = midi;
+        // Shift octave down if note is too high, up if too low
         while (shiftedMidi < minMidi) shiftedMidi += 12;
-        while (shiftedMidi > maxMidi) shiftedMidi -= 12;
+        while (shiftedMidi >= maxMidi) shiftedMidi -= 12;
 
         const noteIndex = shiftedMidi % 12;
         const octave = Math.floor(shiftedMidi / 12) - 1;
         
         let note = MIDI_TO_NOTE[noteIndex].toLowerCase();
         
-        // VexFlow often prefers flats in flat keys (F, Bb, Eb, etc.).
-        // Convert sharps to flats for keys with flats to match expected VexFlow notation.
-        // This is a common solution for VexFlow input.
+        // Apply enharmonic mapping for flat keys (Crucial for VexFlow compatibility)
         const enharmonicMap = {
             'd#': 'eb', 'g#': 'ab', 'c#': 'db', 'f#': 'gb', 'a#': 'bb'
         };
@@ -322,31 +318,31 @@ function generateVexNotes(rootMidi, intervals) {
         return `${note}/${octave}`;
     });
     
-    // Filter to unique notes (e.g., C Major scale only has 8 unique notes)
+    // Filter to unique notes (ensures no duplicate 'c/4' when intervals list contains '12')
     return [...new Set(notes)].filter(n => n.length > 2);
 }
 
-// Full Major and Minor Scale Data (Root note MIDI number and Intervals)
+// Full Major and Minor Scale Data (Only intervals are kept)
 const ALL_SCALES = {
     'Major Scales': {
-        // Intervals: [0, 2, 4, 5, 7, 9, 11, 12] (W W H W W W H)
-        'C Major':    { root: 60, key: 'C',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root C4 (60)
-        'C# Major':   { root: 61, key: 'C#',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root C#4 (61)
-        'Db Major':   { root: 61, key: 'Db',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root Db4 (61)
-        'D Major':    { root: 62, key: 'D',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root D4 (62)
-        'Eb Major':   { root: 63, key: 'Eb',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root Eb4 (63)
-        'E Major':    { root: 64, key: 'E',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root E4 (64)
-        'F Major':    { root: 65, key: 'F',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root F4 (65)
-        'F# Major':   { root: 66, key: 'F#',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root F#4 (66)
-        'Gb Major':   { root: 66, key: 'Gb',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root Gb4 (66)
-        'G Major':    { root: 67, key: 'G',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root G4 (67)
-        'Ab Major':   { root: 68, key: 'Ab',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root Ab4 (68)
-        'A Major':    { root: 69, key: 'A',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root A4 (69)
-        'Bb Major':   { root: 70, key: 'Bb',  intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root Bb4 (70)
-        'B Major':    { root: 71, key: 'B',   intervals: [0, 2, 4, 5, 7, 9, 11] }, // Root B4 (71)
+        // Intervals: [0, 2, 4, 5, 7, 9, 11] (W W H W W W H)
+        'C Major':    { root: 60, key: 'C',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'C# Major':   { root: 61, key: 'C#',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'Db Major':   { root: 61, key: 'Db',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'D Major':    { root: 62, key: 'D',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'Eb Major':   { root: 63, key: 'Eb',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'E Major':    { root: 64, key: 'E',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'F Major':    { root: 65, key: 'F',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'F# Major':   { root: 66, key: 'F#',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'Gb Major':   { root: 66, key: 'Gb',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'G Major':    { root: 67, key: 'G',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'Ab Major':   { root: 68, key: 'Ab',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'A Major':    { root: 69, key: 'A',   intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'Bb Major':   { root: 70, key: 'Bb',  intervals: [0, 2, 4, 5, 7, 9, 11] },
+        'B Major':    { root: 71, key: 'B',   intervals: [0, 2, 4, 5, 7, 9, 11] },
     },
     'Natural Minor Scales': {
-        // Intervals: [0, 2, 3, 5, 7, 8, 10, 12] (W H W W H W W)
+        // Intervals: [0, 2, 3, 5, 7, 8, 10] (W H W W H W W)
         'C Minor':    { root: 60, key: 'Cm',  intervals: [0, 2, 3, 5, 7, 8, 10] }, 
         'C# Minor':   { root: 61, key: 'C#m', intervals: [0, 2, 3, 5, 7, 8, 10] }, 
         'D Minor':    { root: 62, key: 'Dm',  intervals: [0, 2, 3, 5, 7, 8, 10] }, 
@@ -368,12 +364,12 @@ function getScaleData(scaleName) {
     for (const category in ALL_SCALES) {
         const scale = ALL_SCALES[category][scaleName];
         if (scale) {
-            currentKey = scale.key; // Set current key signature before generating notes
+            currentKey = scale.key; // Set current key signature
             scale.notes = generateVexNotes(scale.root, scale.intervals);
             return scale;
         }
     }
-    // Default fallback
+    // Default fallback (should not happen if first scale is always set)
     currentKey = ALL_SCALES['Major Scales']['C Major'].key;
     const defaultScale = ALL_SCALES['Major Scales']['C Major'];
     defaultScale.notes = generateVexNotes(defaultScale.root, defaultScale.intervals);
@@ -383,7 +379,7 @@ function getScaleData(scaleName) {
 function randomNote() {
     const scale = getScaleData(currentScaleName);
     const pool = scale.notes;
-    // Notes are already generated in a safe C4-C5 range by generateVexNotes
+    // Notes are guaranteed to be in C4-C5 range
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -454,6 +450,7 @@ function drawNotes() {
     const stave = new VF.Stave(-5, 40, width + 5); 
     stave.setContext(ctx).draw();
     
+    // FIX: Always use 'q' (quarter note) for simplicity unless rhythm mode is on
     const durationType = rhythmMode ? '8' : 'q';
     
     const notes = sequence.map((keys, i) => {
@@ -462,22 +459,32 @@ function drawNotes() {
             duration: durationType, 
             clef
         });
-        // Add a KeySig to each note to ensure VexFlow correctly renders accidentals
-        // This is crucial for notes that fall outside the key signature (e.g., F# in C Major)
+        
+        // FIX: Re-attach the key signature object. This is a common VexFlow technique
+        // to help VexFlow automatically place necessary accidentals correctly.
         new VF.KeySig(KEY_SIGNATURES[currentKey] || currentKey).attach(n);
         
         n.setAttribute('data-i', i);
         return n;
     });
 
+    // FIX: Voice beat value must match the number of notes (8) times the beat length (1 or 0.5)
+    const beatValue = rhythmMode ? 0.5 : 1; 
     const voice = new VF.Voice({ 
-        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1), 
-        beat_value: 4 
+        num_beats: NOTES_VISIBLE * beatValue, 
+        beat_value: 4 // Quarter note is the beat unit
     });
     
     voice.addTickables(notes);
-    new VF.Formatter().joinVoices([voice]).format([voice], width);
-    voice.draw(ctx, stave);
+    
+    try {
+        new VF.Formatter().joinVoices([voice]).format([voice], width);
+        voice.draw(ctx, stave);
+    } catch (e) {
+        console.error("VexFlow Drawing Error. Check note/voice configuration:", e);
+        // Display an error message on the staff area if drawing fails
+        el.innerHTML = `<div style="color: red; padding: 50px;">Rendering Error. Check console for details.</div>`;
+    }
 
     highlight();
 }
@@ -529,7 +536,7 @@ function midiToVex(m) {
     const octave = Math.floor(m / 12) - 1;
     let note = MIDI_TO_NOTE[noteIndex].toLowerCase();
     
-    // Apply common enharmonic mapping to match VexFlow's rendering, especially for flat keys
+    // Apply enharmonic mapping for flat keys (Crucial for VexFlow compatibility)
     const enharmonicMap = {
         'd#': 'eb', 'g#': 'ab', 'c#': 'db', 'f#': 'gb', 'a#': 'bb'
     };
