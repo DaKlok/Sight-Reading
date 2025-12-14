@@ -9,238 +9,300 @@
 
 <style>
 :root {
-    --primary:#6750A4;
-    --surface:#F7F2FA;
-    --background:#FEF7FF;
-    --target:#00A96B;
-    --default:#6750A4;
-    --wrong:#B3261E;
+    --primary: #6750A4;
+    --surface: #F7F2FA;
+    --background: #FEF7FF;
+    --outline: #79747E;
+    --target-note: #00A96B;
+    --default-note: #6750A4;
+    --wrong-flash: #F2B8B5;
 }
 
 body {
-    margin:0;
-    height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:var(--background);
-    font-family:Segoe UI, Roboto, sans-serif;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: var(--background);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
 }
 
 .container {
-    background:var(--surface);
-    padding:32px;
-    border-radius:28px;
-    width:900px;
-    box-shadow:0 8px 24px rgba(0,0,0,.15);
-    text-align:center;
+    background: var(--surface);
+    padding: 32px;
+    border-radius: 28px;
+    width: 95%;
+    max-width: 960px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
 
-.toggle-group {
-    display:flex;
-    justify-content:center;
-    gap:20px;
-    margin-bottom:12px;
+h1 { color: var(--primary); margin-bottom: 10px; }
+
+.controls, .toggles {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+button {
+    border: 1px solid var(--outline);
+    background: transparent;
+    padding: 8px 18px;
+    border-radius: 18px;
+    cursor: pointer;
+}
+
+button.active {
+    background: var(--primary);
+    color: white;
 }
 
 .toggle {
-    font-size:.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.toggle input {
+    appearance: none;
+    width: 34px;
+    height: 18px;
+    background: #bbb;
+    border-radius: 9px;
+    position: relative;
+}
+
+.toggle input:checked { background: var(--primary); }
+
+.toggle input::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform .2s;
+}
+
+.toggle input:checked::after {
+    transform: translateX(16px);
 }
 
 #notation-window {
-    border:2px solid var(--primary);
-    border-radius:16px;
-    margin:16px auto;
-    width:720px;
-    height:180px;
-    overflow:hidden;
+    width: 760px;
+    height: 180px;
+    margin: 20px auto;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 2px solid var(--primary);
+    position: relative;
 }
 
-.shake {
-    animation:shake .3s;
+#notation {
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+.slide-left {
+    transform: translateX(-90px);
+}
+
+.wrong {
+    animation: shake .25s;
+    background: var(--wrong-flash);
 }
 
 @keyframes shake {
-    0% { transform:translateX(0); }
-    25% { transform:translateX(-6px); }
-    50% { transform:translateX(6px); }
-    75% { transform:translateX(-4px); }
-    100% { transform:translateX(0); }
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
 }
 
-.slide {
-    animation:slide .35s ease-out forwards;
-}
-
-@keyframes slide {
-    from { transform:translateX(0); }
-    to { transform:translateX(-90px); }
-}
-
-.keyboard {
-    display:flex;
-    justify-content:center;
-    margin-top:14px;
-}
-
-.key {
-    width:44px;
-    height:140px;
-    border:1px solid #444;
-    margin:1px;
-    background:white;
-    border-radius:6px;
-    cursor:pointer;
-}
-
-.black {
-    background:black;
-    width:28px;
-    height:90px;
-    margin-left:-14px;
-    margin-right:-14px;
-    z-index:2;
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.85rem;
 }
 </style>
 </head>
 
 <body>
-<div class="container">
+
+<div class="container" id="card">
 <h1>MelodyFlow</h1>
 
-<div class="toggle-group">
-<label class="toggle">Bass <input type="checkbox" id="clef"></label>
-<label class="toggle">Chord <input type="checkbox" id="chord"></label>
-<label class="toggle">Adaptive <input type="checkbox" id="adaptive" checked></label>
-<label class="toggle">Rhythm <input type="checkbox" id="rhythm"></label>
+<div class="controls">
+    <button class="active" onclick="setDifficulty('Beginner')">Beginner</button>
+    <button onclick="setDifficulty('Intermediate')">Intermediate</button>
+    <button onclick="setDifficulty('Advanced')">Advanced</button>
+</div>
+
+<div class="toggles">
+    <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
+    <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
+    <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
 </div>
 
 <div id="notation-window">
-<div id="notation"></div>
+    <div id="notation"></div>
 </div>
 
-<div>
-Accuracy: <span id="acc">100%</span> |
-Streak: <span id="streak">0</span>
+<div class="stats">
+    <div>Accuracy: <span id="accuracy">100%</span></div>
+    <div>Streak: <span id="streak">0</span></div>
+    <div>Best: <span id="best">0</span></div>
 </div>
-
-<div class="keyboard" id="kbd"></div>
 </div>
 
 <script>
 const VF = Vex.Flow;
-let clef='treble', chord=false, adaptive=true, rhythm=false;
-let correct=0, total=0, streak=0;
-let difficulty='Beginner';
+const NOTES_VISIBLE = 8;
 
-const keysigs=['C','G','D','F','Bb'];
+let difficulty = 'Beginner';
+let clef = 'treble';
+let chordMode = false;
+let rhythmMode = false;
 
-const ranges={
-Beginner:['c/4','d/4','e/4','f/4','g/4'],
-Intermediate:['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4'],
-Advanced:['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5']
+let sequence = [];
+let total = 0, correct = 0;
+let streak = 0, best = 0;
+
+const ranges = {
+    Beginner: ['c/4','d/4','e/4','f/4','g/4'],
+    Intermediate: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'],
+    Advanced: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5']
 };
 
-let seq=[];
-
-function rand(arr){return arr[Math.floor(Math.random()*arr.length)]}
-
-function genNote(){
-    let n=rand(ranges[difficulty]);
-    return chord?[n]:[n];
+function randomNote() {
+    const pool = ranges[difficulty];
+    return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function draw(){
-    const el=document.getElementById('notation');
-    el.innerHTML='';
-    const r=new VF.Renderer(el,VF.Renderer.Backends.SVG);
-    r.resize(720,180);
-    const ctx=r.getContext();
-    const stave=new VF.Stave(10,40,700);
-    stave.addClef(clef).addKeySignature(rand(keysigs));
-    stave.setContext(ctx).draw();
-
-    const notes=seq.map((g,i)=>{
-        let n=new VF.StaveNote({
-            keys:g,
-            duration: rhythm && Math.random()<.3?'8':'q',
-            clef
-        });
-        n.setAttribute('data-i',i);
-        return n;
-    });
-
-    const v=new VF.Voice({num_beats:8,beat_value:4});
-    v.addTickables(notes);
-    new VF.Formatter().joinVoices([v]).format([v],620);
-    v.draw(ctx,stave);
-    highlight();
+function generateItem() {
+    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
 }
 
-function highlight(){
-    document.querySelectorAll('.vf-notehead path')
-        .forEach(p=>p.style.fill='var(--default)');
-    const t=document.querySelector('[data-i="0"]');
-    if(!t)return;
-    t.querySelectorAll('.vf-notehead path')
-        .forEach(p=>p.style.fill='var(--target)');
-}
-
-function correctNote(){
-    correct++; total++; streak++;
-    document.getElementById('streak').textContent=streak;
-    animateSlide();
-    setTimeout(()=>{
-        seq.shift(); seq.push(genNote()); draw();
-    },350);
-    updateAcc();
-}
-
-function wrongNote(){
-    total++; streak=0;
-    document.getElementById('streak').textContent=0;
-    document.querySelector('#notation-window').classList.add('shake');
-    setTimeout(()=>document.querySelector('#notation-window').classList.remove('shake'),300);
-    updateAcc();
-}
-
-function animateSlide(){
-    document.querySelector('svg').classList.add('slide');
-}
-
-function updateAcc(){
-    document.getElementById('acc').textContent=
-        Math.round(correct/total*100)+'%';
-}
-
-function start(){
-    seq=[];
-    for(let i=0;i<8;i++) seq.push(genNote());
+function start() {
+    sequence = [];
+    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
     draw();
 }
 
-function midiToVex(m){
-    const n=['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+function draw() {
+    const el = document.getElementById('notation');
+    el.classList.remove('slide-left');
+    el.innerHTML = '';
+
+    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+    r.resize(900, 180);
+    const ctx = r.getContext();
+
+    const stave = new VF.Stave(10, 40, 860);
+    stave.addClef(clef).addTimeSignature("4/4");
+    stave.setContext(ctx).draw();
+
+    const notes = sequence.map((keys, i) => {
+        const n = new VF.StaveNote({
+            keys,
+            duration: rhythmMode && i % 2 ? '8' : 'q',
+            clef
+        });
+        n.setAttribute('data-i', i);
+        return n;
+    });
+
+    const voice = new VF.Voice({ num_beats: NOTES_VISIBLE, beat_value: 4 });
+    voice.addTickables(notes);
+    new VF.Formatter().joinVoices([voice]).format([voice], 820);
+    voice.draw(ctx, stave);
+
+    highlight();
+}
+
+function highlight() {
+    document.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = '#6750A4');
+    const t = document.querySelector('[data-i="0"]');
+    if (!t) return;
+    t.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = '#00A96B');
+}
+
+function correctNote() {
+    const el = document.getElementById('notation');
+    el.classList.add('slide-left');
+
+    setTimeout(() => {
+        sequence.shift();
+        sequence.push(generateItem());
+        correct++; streak++; best = Math.max(best, streak);
+        updateStats();
+        draw();
+    }, 350);
+}
+
+function wrongNote() {
+    const card = document.getElementById('card');
+    card.classList.add('wrong');
+    streak = 0;
+    setTimeout(() => card.classList.remove('wrong'), 250);
+}
+
+function updateStats() {
+    total++;
+    document.getElementById('accuracy').innerText =
+        Math.round((correct / total) * 100) + '%';
+    document.getElementById('streak').innerText = streak;
+    document.getElementById('best').innerText = best;
+}
+
+function midiToVex(m) {
+    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
     return `${n[m%12]}/${Math.floor(m/12)-1}`;
 }
 
-navigator.requestMIDIAccess().then(m=>{
-    for(let i of m.inputs.values()){
-        i.onmidimessage=e=>{
-            if(e.data[0]===144&&e.data[2]>0){
-                const p=midiToVex(e.data[1]);
-                seq[0].includes(p)?correctNote():wrongNote();
+navigator.requestMIDIAccess().then(m => {
+    for (let input of m.inputs.values()) {
+        input.onmidimessage = e => {
+            if (e.data[0] === 144 && e.data[2] > 0) {
+                const played = midiToVex(e.data[1]);
+                total++;
+                sequence[0].includes(played) ? correctNote() : wrongNote();
+                updateStats();
             }
         };
     }
 });
 
-document.getElementById('clef').onchange=e=>{clef=e.target.checked?'bass':'treble';draw();}
-document.getElementById('chord').onchange=e=>{chord=e.target.checked;start();}
-document.getElementById('adaptive').onchange=e=>adaptive=e.target.checked;
-document.getElementById('rhythm').onchange=e=>rhythm=e.target.checked;
+document.getElementById('clefToggle').onchange = e => {
+    clef = e.target.checked ? 'bass' : 'treble';
+    draw();
+};
+document.getElementById('chordToggle').onchange = e => {
+    chordMode = e.target.checked;
+    start();
+};
+document.getElementById('rhythmToggle').onchange = e => {
+    rhythmMode = e.target.checked;
+    draw();
+};
+
+function setDifficulty(d) {
+    difficulty = d;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    start();
+}
 
 start();
 </script>
+
 </body>
 </html>
