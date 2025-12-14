@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.4 - Scales</title>
+<title>MelodyFlow v5.5 - css</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -123,8 +123,6 @@ button.active {
     width: calc(760px - 150px + 5px); /* Adjusted width to compensate for negative margin */
     height: 180px;
     position: relative;
-    /* FIX: The transition will be applied and removed dynamically in JS to prevent "bounce" */
-    /* Remove the static transition line here */
 }
 
 
@@ -229,8 +227,8 @@ const NATURAL_NOTES = [
     'f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5'
 ];
 
-// Scale Definitions: KeySignature, KeyName (for display), and the notes in the scale (all octaves)
-// The key signature is what VexFlow uses (e.g., "C", "G", "Fm", "Bbm")
+// Scale Definitions: KeySignature (for VexFlow), KeyName (for display), and the notes in the scale (all octaves)
+// Includes C Major/A Minor, and all clockwise major/relative minor pairs of the Circle of Fifths.
 const ALL_SCALES = [
     // 0 Sharps/Flats (C Major / A Minor)
     { keySig: 'C', name: 'C Major', notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'] },
@@ -300,20 +298,21 @@ function initScaleDropdown() {
  */
 function setScale(scaleIndex) {
     currentScale = ALL_SCALES[parseInt(scaleIndex)];
-    currentKey = currentScale.keySig.includes('m') ? currentScale.keySig.slice(0, -1) : currentScale.keySig; // Use base note for `currentKey` or keep full signature
+    currentKey = currentScale.keySig;
     start();
 }
 
 
 /**
  * Returns a random note that is within the current scale AND the current difficulty note range.
- * This is the core logic change.
  */
 function randomNote() {
     if (!currentScale) return 'c/4'; // Default if scale isn't set yet
 
     const difficultyRange = ranges[difficulty].notes;
-    const scaleNotesBase = currentScale.notes.map(n => n.toLowerCase().replace('f', 'b').replace('s', '#')); // Convert for comparison (e.g., 'Gf' -> 'gb')
+    // Normalize scale notes for comparison (e.g., VexFlow 'Gf' for Gb needs to be compared to the actual note name)
+    const scaleNotesBase = currentScale.notes.map(n => n.toLowerCase().replace('f', 'b').replace('s', '#').replace('e#', 'f').replace('cf', 'b'));
+    
     
     // Filter the full natural range based on both criteria
     const availableNotes = NATURAL_NOTES.filter(fullNote => {
@@ -321,15 +320,17 @@ function randomNote() {
         const inRange = difficultyRange.includes(fullNote);
         
         // 2. Check if the note is a member of the selected scale
-        const noteName = fullNote.replace(/\/\d/, '').replace(/#/, 's').replace(/b/, 'f'); // Vexflow base name (e.g., 'c/4' -> 'c')
-        const inScale = scaleNotesBase.some(scaleNote => fullNote.startsWith(scaleNote));
+        // Extract the base note name and check against the scale's notes
+        const noteName = fullNote.replace(/\/\d/, ''); // e.g. 'c/4' -> 'c'
+        const inScale = scaleNotesBase.includes(noteName);
         
         return inRange && inScale;
     });
 
     if (availableNotes.length === 0) {
-        console.warn("No available notes for the current scale and difficulty range!");
-        return difficultyRange[0]; // Fallback
+        // This should only happen if the difficulty range is too restrictive for the scale
+        console.warn("No available notes for the current scale and difficulty range! Falling back to C/4.");
+        return 'c/4'; 
     }
 
     return availableNotes[Math.floor(Math.random() * availableNotes.length)];
@@ -346,7 +347,6 @@ function start() {
     if (currentScale) {
         currentKey = currentScale.keySig; // Use the full VexFlow key signature (e.g., "G", "Fm")
     } else {
-        // Fallback or initial state
         currentKey = 'C';
     }
     
@@ -381,7 +381,7 @@ function drawNotes() {
     
     el.innerHTML = '';
     el.style.transform = 'translateX(0)'; // Reset transformation to 0
-    el.style.transition = 'none'; // FIX: Ensure reset is instantaneous (no bounce)
+    el.style.transition = 'none'; // Ensure reset is instantaneous (no bounce)
 
     const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
     const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
@@ -390,8 +390,7 @@ function drawNotes() {
     r.resize(width, 180);
     const ctx = r.getContext();
 
-    // FIX: Start the staff line slightly to the left (e.g., at X=-5) 
-    // to overlap the end of the fixed staff and ensure a continuous line.
+    // Start the staff line slightly to the left to overlap the fixed staff
     const stave = new VF.Stave(-5, 40, width + 5); 
     stave.setContext(ctx).draw();
     
@@ -421,7 +420,6 @@ function drawNotes() {
 
 
 function highlight() {
-    // We only need to query elements within the notation area
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
     
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
@@ -433,10 +431,9 @@ function highlight() {
 function correctNote() {
     const el = document.getElementById('notation');
     
-    // FIX: Apply the transition *before* the transform for a smooth start
     el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
 
-    // 1. Start the smooth slide animation (only moving the notes container)
+    // 1. Start the smooth slide animation
     el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
 
     setTimeout(() => {
