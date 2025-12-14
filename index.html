@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Infinite Flowkey Sight Reading v3.3.0</title>
+<title>MelodyFlow v5.1</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -15,235 +15,413 @@
     --outline: #79747E;
     --target-note: #00A96B;
     --default-note: #6750A4;
-    --correct-flash: #EADDFF;
     --wrong-flash: #F2B8B5;
-    --text-color: #1C1B1F;
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--background);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: var(--background);
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
-    color: var(--text-color);
 }
 
 .container {
-    background-color: var(--surface);
-    padding: 40px;
+    background: var(--surface);
+    padding: 32px;
     border-radius: 28px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    width: 95%;
+    max-width: 960px;
     text-align: center;
-    width: 90%;
-    max-width: 800px;
-    border: 1px solid #EADDFF;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
 
-.header-content {
+h1 { color: var(--primary); margin-bottom: 10px; }
+
+.controls, .toggles {
     display: flex;
     justify-content: center;
     gap: 10px;
-}
-
-h1 {
-    color: var(--primary);
-    font-weight: 400;
-    margin: 0;
-}
-
-.version-tag {
-    color: var(--outline);
-}
-
-.status-chip {
-    display: inline-block;
-    padding: 6px 16px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    margin: 20px 0;
-    background: #E6E1E5;
-}
-
-.status-ready {
-    background: #D0BCFF;
-    color: #381E72;
-}
-
-.btn-group {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 30px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 button {
     border: 1px solid var(--outline);
     background: transparent;
-    padding: 10px 20px;
-    border-radius: 20px;
+    padding: 8px 18px;
+    border-radius: 18px;
     cursor: pointer;
 }
 
 button.active {
-    background-color: var(--primary);
+    background: var(--primary);
     color: white;
 }
 
-#notation-window {
-    width: 600px;
-    height: 150px;
-    margin: 20px auto;
-    border-radius: 16px;
-    border: 2px solid var(--primary);
+.toggle {
     display: flex;
-    justify-content: center;
     align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
 }
 
-.feedback {
-    font-size: 1.2rem;
-    font-weight: bold;
-    height: 1.5em;
-    color: var(--primary);
+.toggle input {
+    appearance: none;
+    width: 34px;
+    height: 18px;
+    background: #bbb;
+    border-radius: 9px;
+    position: relative;
+}
+
+.toggle input:checked { background: var(--primary); }
+
+.toggle input::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform .2s;
+}
+
+.toggle input:checked::after {
+    transform: translateX(16px);
+}
+
+#notation-window {
+    width: 760px;
+    height: 180px;
+    margin: 20px auto;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 2px solid var(--primary);
+    position: relative;
+}
+
+#notation {
+    /* Smoother, slightly slower transition */
+    transition: transform 0.4s cubic-bezier(.4,0,.2,1); 
+    /* VexFlow canvas will be placed here */
+}
+
+/* Updated style to slide the entire content smoothly */
+.slide-left {
+    transform: translateX(-100px); /* Adjusted distance */
+}
+
+/* Reduced shake animation and targeted to notation area */
+.wrong-flash {
+    animation: shake .3s;
+    background-color: var(--wrong-flash); /* Flash color on the window */
+    border-color: #E35050 !important;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    50% { transform: translateX(2px); }
+    75% { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.85rem;
+    margin-top: 15px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container" id="app-card">
-    <div class="header-content">
-        <h1>MelodyFlow</h1>
-        <span class="version-tag">v3.3.0</span>
-    </div>
+<div class="container" id="card">
+<h1>MelodyFlow</h1>
 
-    <div id="status" class="status-chip">Waiting for MIDI...</div>
+<div class="controls">
+    <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
+    <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
+    <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
+</div>
 
-    <div class="btn-group">
-        <button class="active" onclick="setDiff('Beginner')">Beginner</button>
-        <button onclick="setDiff('Intermediate')">Intermediate</button>
-        <button onclick="setDiff('Advanced')">Advanced</button>
-    </div>
+<div class="toggles">
+    <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
+    <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
+    <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
+    <button onclick="exportStats()">Export Stats 📊</button>
+</div>
 
-    <div id="notation-window">
-        <div id="notation"></div>
-    </div>
+<div id="notation-window">
+    <div id="notation"></div>
+</div>
 
-    <div class="feedback" id="feedback-text">Play the highlighted note</div>
-
-    <div style="margin-top:10px;font-size:0.8rem;color:#666">
-        Notes Completed: <span id="notes-completed">0</span>
-    </div>
+<div class="stats">
+    <div>Accuracy: <span id="accuracy">100%</span></div>
+    <div>Streak: <span id="streak">0</span></div>
+    <div>Best: <span id="best">0</span></div>
+</div>
 </div>
 
 <script>
 const VF = Vex.Flow;
+const NOTES_VISIBLE = 8;
+const NOTE_WIDTH = 100; // Estimated width of a note block for sliding
 
 let difficulty = 'Beginner';
+let clef = 'treble';
+let chordMode = false;
+let rhythmMode = false;
+let currentKey = 'C';
+
 let sequence = [];
-let notesCompleted = 0;
+let total = 0, correct = 0;
+let streak = 0, best = 0;
 
-const notesPerMeasure = 4;
-
-const levels = {
-    Beginner: ['c/4','d/4','e/4','f/4','g/4'],
-    Intermediate: ['c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'],
-    Advanced: ['g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5','e/5']
+const ranges = {
+    Beginner: {
+        keys: ['C'],
+        notes: ['c/4','d/4','e/4','f/4','g/4']
+    },
+    Intermediate: {
+        keys: ['G', 'F', 'D'], // 1#, 1b, 2#
+        notes: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5']
+    },
+    Advanced: {
+        keys: ['A', 'E', 'Eb', 'B'], // 3#, 4#, 3b, 5# (more complex keys)
+        notes: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5']
+    }
 };
 
-function generateNote() {
-    const pool = levels[difficulty];
+function randomNote() {
+    // Note pool remains the same, VexFlow handles accidentals based on currentKey
+    const pool = ranges[difficulty].notes;
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function startExercise() {
-    notesCompleted = 0;
-    document.getElementById('notes-completed').innerText = 0;
+function generateItem() {
+    // Generate notes based on mode (single note or simple chord)
+    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
+}
 
+function start() {
+    // Reset or initialize new sequence
     sequence = [];
-    for (let i = 0; i < notesPerMeasure; i++) {
-        sequence.push(generateNote());
-    }
-
-    drawMeasure();
+    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
+    
+    // Select a new random key signature for the level
+    const keys = ranges[difficulty].keys;
+    currentKey = keys[Math.floor(Math.random() * keys.length)];
+    
+    draw();
 }
 
-function setDiff(diff) {
-    difficulty = diff;
-    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
-    startExercise();
-}
+function draw() {
+    const el = document.getElementById('notation');
+    const windowEl = document.getElementById('notation-window');
+    
+    // Remove the slide-left class BEFORE redrawing
+    el.classList.remove('slide-left');
+    el.style.transform = 'translateX(0)'; // Ensure transformation is reset
+    el.innerHTML = '';
 
-function drawMeasure() {
-    const container = document.getElementById('notation');
-    container.innerHTML = '';
+    const width = NOTES_VISIBLE * NOTE_WIDTH + 100; // Total width of the drawing area
+    
+    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
+    r.resize(width, 180);
+    const ctx = r.getContext();
 
-    const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
-    renderer.resize(600, 150);
-    const context = renderer.getContext();
+    // Create the stave with the current clef, time, and KEY SIGNATURE
+    const stave = new VF.Stave(10, 40, width - 20);
+    stave.addClef(clef)
+          .addTimeSignature("4/4")
+          .addKeySignature(currentKey); // Use the current random key
+    stave.setContext(ctx).draw();
+    
+    // Define durations based on rhythm mode
+    const durationType = rhythmMode ? '8' : 'q';
+    const numBeats = rhythmMode ? 4 : NOTES_VISIBLE; // 8 eighth notes in 4 beats, 8 quarter notes in 8 beats (voice will auto-fail if it doesn't fit the time sig, so need to adjust)
+    const beatValue = rhythmMode ? 4 : 4; // Use 4/4 time signature
 
-    const stave = new VF.Stave(10, 20, 580);
-    stave.addClef("treble").addTimeSignature("4/4");
-    stave.setContext(context).draw();
-
-    const notes = sequence.map((key, i) => {
-        const note = new VF.StaveNote({ keys:[key], duration:'q' });
-        note.setAttribute('data-index', i);
-        if (key.includes('#')) note.addModifier(new VF.Accidental('#'));
-        return note;
+    const notes = sequence.map((keys, i) => {
+        const n = new VF.StaveNote({
+            keys,
+            duration: durationType, // All notes are now the same duration in Rhythm Mode
+            clef
+        });
+        n.setAttribute('data-i', i);
+        return n;
     });
 
-    const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
+    const voice = new VF.Voice({ 
+        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1), // Adjust num beats for 4/4 time: 8 quarter = 8 beats, 8 eighth = 4 beats
+        beat_value: 4 
+    });
+    
+    // In order to not worry about formatting issues, we will just use 8 quarter notes for now, 
+    // and rely on the duration change for the visual
     voice.addTickables(notes);
-    new VF.Formatter().joinVoices([voice]).format([voice], 520);
-    voice.draw(context, stave);
+    new VF.Formatter().joinVoices([voice]).format([voice], width - 40);
+    voice.draw(ctx, stave);
 
-    highlightTarget();
+    highlight();
 }
 
-function highlightTarget() {
-    const target = document.querySelector('[data-index="0"]');
-    if (!target) return;
-    target.querySelectorAll('.vf-notehead path').forEach(p => {
-        p.style.fill = getComputedStyle(document.documentElement)
-            .getPropertyValue('--target-note');
-    });
+function highlight() {
+    // Reset fill color for all noteheads
+    document.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
+    
+    // Find the target note (index 0)
+    const targetNoteElement = document.querySelector('[data-i="0"]');
+    if (!targetNoteElement) return;
+    
+    // Highlight the target note
+    targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
 }
 
-function handleCorrectNote() {
-    sequence.shift();
-    sequence.push(generateNote());
-    notesCompleted++;
-    document.getElementById('notes-completed').innerText = notesCompleted;
-    drawMeasure();
+function correctNote() {
+    const el = document.getElementById('notation');
+    
+    // 1. Start the smooth slide animation
+    el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
+
+    setTimeout(() => {
+        // 2. Update the internal sequence
+        sequence.shift();
+        sequence.push(generateItem());
+        
+        // 3. Update stats
+        correct++; streak++; best = Math.max(best, streak);
+        updateStats();
+        
+        // 4. Redraw the staff reset to position 0
+        draw();
+    }, 400); // Wait for animation duration (0.4s) + slight buffer
 }
 
-function midiToVex(midi) {
-    const names = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    return `${names[midi % 12]}/${Math.floor(midi / 12) - 1}`;
+function wrongNote() {
+    const windowEl = document.getElementById('notation-window');
+    windowEl.classList.add('wrong-flash');
+    streak = 0;
+    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); // Short flash
 }
 
-/* MIDI */
-navigator.requestMIDIAccess().then(midi => {
-    document.getElementById('status').innerText = "MIDI Connected";
-    document.getElementById('status').classList.add('status-ready');
-    for (let input of midi.inputs.values()) {
+function updateStats() {
+    total++;
+    // Use the current total and correct values for the display update
+    document.getElementById('accuracy').innerText =
+        (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
+    document.getElementById('streak').innerText = streak;
+    document.getElementById('best').innerText = best;
+}
+
+function midiToVex(m) {
+    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+    // MIDI note 60 = C4. (m / 12) - 1 is the octave calculation.
+    return `${n[m%12]}${m%12 === 1 || m%12 === 3 || m%12 === 6 || m%12 === 8 || m%12 === 10 ? '#' : ''}/${Math.floor(m/12)-1}`;
+}
+
+// Global variable to track currently pressed MIDI keys (for polyphonic logic)
+const pressedKeys = new Set(); 
+
+navigator.requestMIDIAccess().then(m => {
+    for (let input of m.inputs.values()) {
         input.onmidimessage = e => {
-            if (e.data[0] === 144 && e.data[2] > 0) {
-                if (midiToVex(e.data[1]) === sequence[0]) {
-                    handleCorrectNote();
+            const status = e.data[0];
+            const midiNote = e.data[1];
+            const velocity = e.data[2];
+            const playedVex = midiToVex(midiNote);
+
+            if (status === 144 && velocity > 0) { // Note On
+                pressedKeys.add(playedVex);
+                
+                // Polyphonic Check: Only check for correctness if Chord Mode is ON
+                if (chordMode) {
+                    const targetChord = sequence[0];
+                    const targetSet = new Set(targetChord);
+                    
+                    // Check if pressedKeys contains ALL target notes AND only target notes
+                    const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
+
+                    if (allMatch) {
+                        correctNote();
+                        // Clear keys only on correct match to allow lift-off without triggering errors
+                        pressedKeys.clear(); 
+                    } else if (!targetChord.includes(playedVex)) {
+                        // If an incorrect note is played, mark wrong and reset streak
+                        wrongNote();
+                        updateStats();
+                    }
+                } else {
+                    // Monophonic Check: Check only the current note
+                    total++; // Total only counted on first press in monophonic mode
+                    if (sequence[0].includes(playedVex)) {
+                        correctNote();
+                    } else {
+                        wrongNote();
+                    }
+                    updateStats();
                 }
+            } else if (status === 128 || (status === 144 && velocity === 0)) { // Note Off
+                pressedKeys.delete(playedVex);
             }
         };
     }
 });
 
-startExercise();
+document.getElementById('clefToggle').onchange = e => {
+    clef = e.target.checked ? 'bass' : 'treble';
+    start(); // Start over with the new clef
+};
+document.getElementById('chordToggle').onchange = e => {
+    chordMode = e.target.checked;
+    start();
+};
+document.getElementById('rhythmToggle').onchange = e => {
+    rhythmMode = e.target.checked;
+    start(); // Restart to ensure new durations are properly formatted
+};
+
+function setDifficulty(d, event) {
+    difficulty = d;
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    if(event && event.target) {
+        event.target.classList.add('active');
+    }
+    start();
+}
+
+function exportStats() {
+    const stats = {
+        difficulty: difficulty,
+        clef: clef,
+        chordMode: chordMode,
+        rhythmMode: rhythmMode,
+        totalAttempts: total,
+        totalCorrect: correct,
+        accuracy: (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%',
+        currentStreak: streak,
+        bestStreak: best,
+        exportTime: new Date().toISOString()
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "MelodyFlow_Stats.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
+
+start();
 </script>
 
 </body>
