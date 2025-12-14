@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v4.1</title>
+<title>Infinite Flowkey Sight Reading v3.3.0</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -21,8 +21,8 @@
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-    background: var(--background);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--background);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -32,70 +32,70 @@ body {
 }
 
 .container {
-    background: var(--surface);
+    background-color: var(--surface);
     padding: 40px;
     border-radius: 28px;
-    width: 90%;
-    max-width: 900px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
     text-align: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    width: 90%;
+    max-width: 800px;
+    border: 1px solid #EADDFF;
+}
+
+.header-content {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
 }
 
 h1 {
     color: var(--primary);
-    margin: 0 0 20px 0;
     font-weight: 400;
+    margin: 0;
 }
 
-/* Toggle Switches */
-.toggle-group {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin-bottom: 20px;
+.version-tag {
+    color: var(--outline);
 }
 
-.toggle {
+.status-chip {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin: 20px 0;
+    background: #E6E1E5;
+}
+
+.status-ready {
+    background: #D0BCFF;
+    color: #381E72;
+}
+
+.btn-group {
     display: flex;
-    align-items: center;
     gap: 8px;
-    font-size: 0.85rem;
+    justify-content: center;
+    margin-bottom: 30px;
 }
 
-.toggle input {
-    appearance: none;
-    width: 36px;
-    height: 20px;
-    background: #ccc;
-    border-radius: 10px;
-    position: relative;
+button {
+    border: 1px solid var(--outline);
+    background: transparent;
+    padding: 10px 20px;
+    border-radius: 20px;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
-.toggle input:checked {
-    background: var(--primary);
-}
-
-.toggle input::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 50%;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.2s;
-}
-
-.toggle input:checked::after {
-    transform: translateX(16px);
+button.active {
+    background-color: var(--primary);
+    color: white;
 }
 
 #notation-window {
-    width: 700px;
-    height: 160px;
+    width: 600px;
+    height: 150px;
     margin: 20px auto;
     border-radius: 16px;
     border: 2px solid var(--primary);
@@ -105,58 +105,49 @@ h1 {
 }
 
 .feedback {
+    font-size: 1.2rem;
     font-weight: bold;
     height: 1.5em;
-    margin-top: 10px;
+    color: var(--primary);
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-    <h1>MelodyFlow</h1>
+<div class="container" id="app-card">
+    <div class="header-content">
+        <h1>MelodyFlow</h1>
+        <span class="version-tag">v3.3.0</span>
+    </div>
 
-    <div class="toggle-group">
-        <label class="toggle">
-            Bass Clef
-            <input type="checkbox" id="clefToggle">
-        </label>
+    <div id="status" class="status-chip">Waiting for MIDI...</div>
 
-        <label class="toggle">
-            Chord Mode
-            <input type="checkbox" id="chordToggle">
-        </label>
-
-        <label class="toggle">
-            Adaptive Difficulty
-            <input type="checkbox" id="adaptiveToggle" checked>
-        </label>
+    <div class="btn-group">
+        <button class="active" onclick="setDiff('Beginner')">Beginner</button>
+        <button onclick="setDiff('Intermediate')">Intermediate</button>
+        <button onclick="setDiff('Advanced')">Advanced</button>
     </div>
 
     <div id="notation-window">
         <div id="notation"></div>
     </div>
 
-    <div class="feedback" id="feedback">Play the highlighted note</div>
-    <div style="font-size:0.8rem;margin-top:8px">
-        Notes Completed: <span id="count">0</span>
+    <div class="feedback" id="feedback-text">Play the highlighted note</div>
+
+    <div style="margin-top:10px;font-size:0.8rem;color:#666">
+        Notes Completed: <span id="notes-completed">0</span>
     </div>
 </div>
 
 <script>
 const VF = Vex.Flow;
 
-let clef = 'treble';
-let chordMode = false;
-let adaptive = true;
 let difficulty = 'Beginner';
-
 let sequence = [];
-let completed = 0;
-let lastTime = performance.now();
+let notesCompleted = 0;
 
-const NOTES_VISIBLE = 8;
+const notesPerMeasure = 4;
 
 const levels = {
     Beginner: ['c/4','d/4','e/4','f/4','g/4'],
@@ -164,139 +155,95 @@ const levels = {
     Advanced: ['g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5','e/5']
 };
 
-function randomNote() {
+function generateNote() {
     const pool = levels[difficulty];
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function buildChord(root) {
-    const scale = ['c','d','e','f','g','a','b'];
-    const [n, o] = root.split('/');
-    const i = scale.indexOf(n[0]);
-    return [
-        root,
-        `${scale[(i+2)%7]}/${o}`,
-        `${scale[(i+4)%7]}/${o}`
-    ];
-}
+function startExercise() {
+    notesCompleted = 0;
+    document.getElementById('notes-completed').innerText = 0;
 
-function generateItem() {
-    const n = randomNote();
-    return chordMode ? buildChord(n) : [n];
-}
-
-function start() {
     sequence = [];
-    completed = 0;
-    document.getElementById('count').innerText = 0;
-
-    for (let i = 0; i < NOTES_VISIBLE; i++) {
-        sequence.push(generateItem());
+    for (let i = 0; i < notesPerMeasure; i++) {
+        sequence.push(generateNote());
     }
-    draw();
+
+    drawMeasure();
 }
 
-function draw() {
-    const el = document.getElementById('notation');
-    el.innerHTML = '';
+function setDiff(diff) {
+    difficulty = diff;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    startExercise();
+}
 
-    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(700, 160);
-    const ctx = r.getContext();
+function drawMeasure() {
+    const container = document.getElementById('notation');
+    container.innerHTML = '';
 
-    const stave = new VF.Stave(10, 30, 680);
-    stave.addClef(clef).addTimeSignature("4/4");
-    stave.setContext(ctx).draw();
+    const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+    renderer.resize(600, 150);
+    const context = renderer.getContext();
 
-    const notes = sequence.map((group, i) => {
-        const n = new VF.StaveNote({
-            keys: group,
-            duration: 'q',
-            clef
-        });
-        n.setAttribute('data-i', i);
-        return n;
+    const stave = new VF.Stave(10, 20, 580);
+    stave.addClef("treble").addTimeSignature("4/4");
+    stave.setContext(context).draw();
+
+    const notes = sequence.map((key, i) => {
+        const note = new VF.StaveNote({ keys:[key], duration:'q' });
+        note.setAttribute('data-index', i);
+        if (key.includes('#')) note.addModifier(new VF.Accidental('#'));
+        return note;
     });
 
-    const voice = new VF.Voice({ num_beats: NOTES_VISIBLE, beat_value: 4 });
+    const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
     voice.addTickables(notes);
-    new VF.Formatter().joinVoices([voice]).format([voice], 620);
-    voice.draw(ctx, stave);
+    new VF.Formatter().joinVoices([voice]).format([voice], 520);
+    voice.draw(context, stave);
 
-    highlight();
+    highlightTarget();
 }
 
-function highlight() {
-    document.querySelectorAll('.vf-notehead path').forEach(p => {
-        p.style.fill = getComputedStyle(document.documentElement)
-            .getPropertyValue('--default-note');
-    });
-
-    const t = document.querySelector('[data-i="0"]');
-    if (!t) return;
-
-    t.querySelectorAll('.vf-notehead path').forEach(p => {
+function highlightTarget() {
+    const target = document.querySelector('[data-index="0"]');
+    if (!target) return;
+    target.querySelectorAll('.vf-notehead path').forEach(p => {
         p.style.fill = getComputedStyle(document.documentElement)
             .getPropertyValue('--target-note');
     });
 }
 
-function correctNote() {
-    const now = performance.now();
-    const delta = now - lastTime;
-    lastTime = now;
-
-    if (adaptive) {
-        if (delta < 600 && difficulty !== 'Advanced') {
-            difficulty = difficulty === 'Beginner' ? 'Intermediate' : 'Advanced';
-        }
-        if (delta > 1200 && difficulty !== 'Beginner') {
-            difficulty = difficulty === 'Advanced' ? 'Intermediate' : 'Beginner';
-        }
-    }
-
+function handleCorrectNote() {
     sequence.shift();
-    sequence.push(generateItem());
-    completed++;
-    document.getElementById('count').innerText = completed;
-    draw();
+    sequence.push(generateNote());
+    notesCompleted++;
+    document.getElementById('notes-completed').innerText = notesCompleted;
+    drawMeasure();
 }
 
-function midiToVex(m) {
-    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    return `${n[m%12]}/${Math.floor(m/12)-1}`;
+function midiToVex(midi) {
+    const names = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+    return `${names[midi % 12]}/${Math.floor(midi / 12) - 1}`;
 }
 
 /* MIDI */
-navigator.requestMIDIAccess().then(m => {
-    for (let input of m.inputs.values()) {
+navigator.requestMIDIAccess().then(midi => {
+    document.getElementById('status').innerText = "MIDI Connected";
+    document.getElementById('status').classList.add('status-ready');
+    for (let input of midi.inputs.values()) {
         input.onmidimessage = e => {
             if (e.data[0] === 144 && e.data[2] > 0) {
-                const played = midiToVex(e.data[1]);
-                if (sequence[0].includes(played)) {
-                    correctNote();
+                if (midiToVex(e.data[1]) === sequence[0]) {
+                    handleCorrectNote();
                 }
             }
         };
     }
 });
 
-/* Toggles */
-document.getElementById('clefToggle').onchange = e => {
-    clef = e.target.checked ? 'bass' : 'treble';
-    draw();
-};
-
-document.getElementById('chordToggle').onchange = e => {
-    chordMode = e.target.checked;
-    start();
-};
-
-document.getElementById('adaptiveToggle').onchange = e => {
-    adaptive = e.target.checked;
-};
-
-start();
+startExercise();
 </script>
 
 </body>
