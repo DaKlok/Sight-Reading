@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowkey Style Sight Reading</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    
+    <style>
+        :root {
+            --primary: #6750A4;       /* Deep Violet */
+            --surface: #F7F2FA;       /* Soft Lavender Surface */
+            --background: #FEF7FF;    /* Near-White Background */
+            --outline: #79747E;
+            --target-note: #00A96B;   /* Bright Green for Target */
+            --correct-flash: #EADDFF; /* Light Purple Flash */
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #1C1B1F;
+            overflow: hidden;
+        }
+
+        /* Material 3 Card Style */
+        .container {
+            background-color: var(--surface);
+            padding: 40px;
+            border-radius: 28px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 800px;
+            border: 1px solid #EADDFF;
+            transition: background-color 0.2s ease;
+        }
+
+        h1 { color: var(--primary); margin-top: 0; font-weight: 400; font-size: 2rem; }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: #E6E1E5;
+        }
+
+        .status-ready { background: #D0BCFF; color: #381E72; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            border: 1px solid var(--outline);
+            background: transparent;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Scrolling Notation Area */
+        #notation-window {
+            overflow: hidden;
+            width: 600px; /* Viewport width */
+            height: 150px;
+            margin: 20px auto;
+            border-radius: 16px;
+            border: 2px solid var(--primary);
+            position: relative;
+        }
+        
+        #notation-scroller {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            display: flex; /* VexFlow SVG elements will be laid out horizontally */
+            transition: transform 0.3s ease-out; /* Smooth scrolling animation */
+        }
+
+        /* Custom VexFlow Styling */
+        .vf-stave {
+            margin-right: 1px; /* Small gap between measures */
+        }
+
+        .feedback {
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 1.5em;
+            color: var(--primary);
+        }
+
+        /* Flash animation for correct notes */
+        .correct-bg {
+            animation: success-flash 0.3s ease;
+        }
+        @keyframes success-flash {
+            0% { background-color: var(--surface); }
+            50% { background-color: var(--correct-flash); transform: scale(1.01); }
+            100% { background-color: var(--surface); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app-card">
+    <h1>MelodyFlow</h1>
+    <div id="status" class="status-chip">Waiting for Roland FP-30...</div>
+
+    <div class="btn-group">
+        <button id="btn-Beginner" class="active" onclick="setDiff('Beginner')">Beginner</button>
+        <button id="btn-Intermediate" onclick="setDiff('Intermediate')">Intermediate</button>
+        <button id="btn-Advanced" onclick="setDiff('Advanced')">Advanced</button>
+    </div>
+
+    <div id="notation-window">
+        <div id="notation-scroller">
+            </div>
+    </div>
+
+    <div class="feedback" id="feedback-text">Play the highlighted note</div>
+    <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">
+        Notes Completed: <span id="notes-completed">0</span>
+    </div>
+</div>
+
+<script>
+    const VF = Vex.Flow;
+    
+    // --- Global State ---
+    let difficulty = 'Beginner';
+    let currentNoteIndex = 0;
+    let notesCompleted = 0;
+    let sequence = []; // Holds the full sequence of note keys (e.g., ['c/4', 'd/4', 'e/4', ...])
+    let scrollerOffset = 0;
+
+    const measureWidth = 200; // Width of a single VexFlow stave
+    const sequenceLength = 20; // Total number of notes in the exercise
+
+    const levels = {
+        'Beginner': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'],
+        'Intermediate': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'],
+        'Advanced': ['g/3', 'a/3', 'b/3', 'c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5', 'd/5', 'e/5']
+    };
+
+    // --- MIDI Logic ---
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+        document.getElementById('status').innerText = "Browser doesn't support MIDI";
+    }
+
+    function onMIDISuccess(midiAccess) {
+        document.getElementById('status').innerText = "Roland FP-30 Connected";
+        document.getElementById('status').classList.add('status-ready');
+        const inputs = midiAccess.inputs.values();
+        for (let input of inputs) {
+            input.onmidimessage = handleMidi;
+        }
+        startExercise();
+    }
+
+    function onMIDIFailure() {
+        document.getElementById('status').innerText = "MIDI Access Denied";
+    }
+
+    function handleMidi(message) {
+        const [command, note, velocity] = message.data;
+        if (command === 144 && velocity > 0) { // Note On
+            const played = midiToVex(note);
+            
+            if (currentNoteIndex < sequence.length && played === sequence[currentNoteIndex]) {
+                triggerSuccess();
+                advanceNote();
+            }
+        }
+    }
+
+    function midiToVex(midi) {
+        const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+        const octave = Math.floor(midi / 12) - 1;
+        return `${names[midi % 12]}/${octave}`;
+    }
+
+    // --- Exercise Setup ---
+    function generateSequence(lvl) {
+        const pool = levels[lvl];
+        const newSeq = [];
+        for (let i = 0; i < sequenceLength; i++) {
+            newSeq.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+        return newSeq;
+    }
+
+    function startExercise() {
+        notesCompleted = 0;
+        currentNoteIndex = 0;
+        scrollerOffset = 0;
+        sequence = generateSequence(difficulty);
+        document.getElementById('notes-completed').innerText = notesCompleted;
+        renderAllMeasures();
+    }
+
+    function setDiff(lvl) {
+        difficulty = lvl;
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + lvl).classList.add('active');
+        startExercise();
+    }
+
+    // --- Scrolling and Animation ---
+    function advanceNote() {
+        currentNoteIndex++;
+        notesCompleted++;
+        document.getElementById('notes-completed').innerText = notesCompleted;
+
+        if (currentNoteIndex >= sequence.length) {
+            document.getElementById('feedback-text').innerText = "Exercise Complete! 🎉";
+            return;
+        }
+
+        // Check if we need to scroll the measures left.
+        // We'll scroll every 4 notes, which is one measure (since notes are quarter notes in 4/4).
+        if (currentNoteIndex > 0 && currentNoteIndex % 4 === 0) {
+            scrollerOffset += measureWidth;
+            const scroller = document.getElementById('notation-scroller');
+            scroller.style.transform = `translateX(-${scrollerOffset}px)`;
+        }
+        
+        // Re-render to highlight the new target note
+        highlightTargetNote(); 
+    }
+    
+    function triggerSuccess() {
+        const card = document.getElementById('app-card');
+        card.classList.remove('correct-bg');
+        void card.offsetWidth; 
+        card.classList.add('correct-bg');
+        document.getElementById('feedback-text').innerText = "Nice! 👌";
+        setTimeout(() => {
+            document.getElementById('feedback-text').innerText = "Play the highlighted note";
+        }, 300);
+    }
+
+    // --- VexFlow Rendering ---
+    function renderAllMeasures() {
+        const scroller = document.getElementById("notation-scroller");
+        scroller.innerHTML = '';
+        scroller.style.transform = 'translateX(0px)';
+
+        const totalMeasures = Math.ceil(sequence.length / 4);
+        const sequenceNotes = [...sequence]; // Copy sequence to consume it
+
+        for (let i = 0; i < totalMeasures; i++) {
+            const measureDiv = document.createElement('div');
+            measureDiv.className = 'vf-stave';
+            measureDiv.id = `measure-${i}`;
+            scroller.appendChild(measureDiv);
+
+            const renderer = new VF.Renderer(measureDiv, VF.Renderer.Backends.SVG);
+            // Height is fixed. Width includes barline and clef space for the first bar.
+            const width = i === 0 ? measureWidth + 50 : measureWidth; 
+            renderer.resize(width, 150);
+            const context = renderer.getContext();
+            context.clearRect(0, 0, width, 150);
+
+            let xPos = i === 0 ? 10 : 0;
+            const stave = new VF.Stave(xPos, 20, width - 10);
+            
+            if (i === 0) {
+                stave.addClef("treble").addTimeSignature("4/4");
+            } else {
+                stave.setBegBarType(VF.Barline.type.SINGLE);
+            }
+            
+            if (i === totalMeasures - 1) {
+                stave.setEndBarType(VF.Barline.type.END);
+            }
+
+            stave.setContext(context).draw();
+
+            const notes = [];
+            const measureNotes = sequenceNotes.splice(0, 4);
+
+            measureNotes.forEach((key, j) => {
+                const note = new VF.StaveNote({ keys: [key], duration: "q", clef: "treble" });
+                note.setAttribute('data-note-index', (i * 4) + j); // Track index for highlighting
+                if (key.includes('#')) note.addModifier(new VF.Accidental("#"));
+                notes.push(note);
+            });
+
+            const voice = new VF.Voice({num_beats: 4, beat_value: 4}).addTickables(notes);
+            new VF.Formatter().joinVoices([voice]).format([voice], width - 40);
+            voice.draw(context, stave);
+        }
+        
+        // Initial highlight of the very first note
+        highlightTargetNote();
+    }
+    
+    // Logic to visually highlight the current target note
+    function highlightTargetNote() {
+        // Clear previous highlights
+        document.querySelectorAll('.vf-stave g path').forEach(path => {
+            if (path.getAttribute('original-fill')) {
+                path.style.fill = path.getAttribute('original-fill');
+            } else {
+                path.style.fill = '#6750A4'; // Default color
+            }
+        });
+        
+        // Find the next note by its data-note-index attribute
+        const targetElement = document.querySelector(`[data-note-index="${currentNoteIndex}"]`);
+        if (targetElement) {
+            // Find the head of the note (usually the first 'path' element in its container group)
+            const noteHeads = targetElement.querySelectorAll('path');
+            noteHeads.forEach(path => {
+                path.setAttribute('original-fill', path.style.fill || '#6750A4');
+                path.style.fill = var2hex('--target-note'); // Set to bright green
+                path.style.transition = 'fill 0.1s ease'; // Smooth color change
+            });
+        }
+    }
+    
+    // Helper to get CSS variable value (since we can't use them directly in SVG fill)
+    function var2hex(variable) {
+        return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    }
+    
+    // Start everything up
+    startExercise();
+
+</script>
+</body>
+</html>
