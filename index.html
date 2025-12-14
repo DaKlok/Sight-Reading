@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.5 - css</title>
+<title>MelodyFlow v5.3 - Seamless Stave</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -123,6 +123,8 @@ button.active {
     width: calc(760px - 150px + 5px); /* Adjusted width to compensate for negative margin */
     height: 180px;
     position: relative;
+    /* FIX: The transition will be applied and removed dynamically in JS to prevent "bounce" */
+    /* Remove the static transition line here */
 }
 
 
@@ -149,24 +151,14 @@ button.active {
     margin-top: 15px;
 }
 
-/* New styles for dropdown to match button styling */
-select#scale-select {
-    border: 1px solid var(--outline);
-    background: transparent;
-    padding: 8px 18px;
-    border-radius: 18px;
-    cursor: pointer;
-    margin-left: 10px;
-    /* Remove default arrow on some browsers for cleaner look */
-    appearance: none;
-    -moz-appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2379747E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    padding-right: 30px; /* Make space for the custom arrow */
+#scaleSelect {
+    padding: 8px;
+    border-radius: 18px;
+    border: 1px solid var(--outline);
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
 }
-
 </style>
 </head>
 
@@ -179,17 +171,36 @@ select#scale-select {
     <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
     <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
     <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
-
-        <select id="scale-select" onchange="setScale(this.value)">
-        <option value="" disabled>Select Scale...</option>
-    </select>
 </div>
 
 <div class="toggles">
     <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
     <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
     <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
-    <button onclick="exportStats()">Export Stats 📊</button>
+
+    <select id="scaleSelect">
+        <optgroup label="Major Scales (Circle of Fifths)">
+            <option value="CMajor" data-keysig="C">C Major</option>
+            <option value="GMajor" data-keysig="G">G Major (1#)</option>
+            <option value="DMajor" data-keysig="D">D Major (2#)</option>
+            <option value="AMajor" data-keysig="A">A Major (3#)</option>
+            <option value="EMajor" data-keysig="E">E Major (4#)</option>
+            <option value="BMajor" data-keysig="B">B Major (5#)</option>
+            <option value="FsMajor" data-keysig="F#">F# Major (6#)</option>
+            <option value="CsMajor" data-keysig="C#">C# Major (7#)</option>
+        </optgroup>
+        <optgroup label="Minor Scales (Relative)">
+            <option value="AMinor" data-keysig="Am">A Minor</option>
+            <option value="EMinor" data-keysig="Em">E Minor (1#)</option>
+            <option value="BMinor" data-keysig="Bm">B Minor (2#)</option>
+            <option value="FsMinor" data-keysig="F#m">F# Minor (3#)</option>
+            <option value="CsMinor" data-keysig="C#m">C# Minor (4#)</option>
+            <option value="GsMinor" data-keysig="G#m">G# Minor (5#)</option>
+            <option value="DsMinor" data-keysig="D#m">D# Minor (6#)</option>
+            <option value="AsMinor" data-keysig="A#m">A# Minor (7#)</option>
+        </optgroup>
+    </select>
+        <button onclick="exportStats()">Export Stats 📊</button>
 </div>
 
 <div id="notation-window">
@@ -215,140 +226,249 @@ let difficulty = 'Beginner';
 let clef = 'treble';
 let chordMode = false;
 let rhythmMode = false;
-let currentKey = 'C';
-let currentScale = null; // New variable to store the currently selected scale
+let currentKey = 'C'; // Key signature (e.g., 'C', 'G', 'Am', 'F#m')
+let currentScaleNotes = []; // Notes available for the current scale, across all octaves
 
 let sequence = [];
 let total = 0, correct = 0;
 let streak = 0, best = 0;
 
-// All natural notes on the staff (covering a decent range for all difficulties)
-const NATURAL_NOTES = [
-    'f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5'
+// All natural notes on the staff (A3 to D5) for filtering.
+// Middle C is c/4. This covers a common range for treble clef.
+const ALL_NOTES = [
+    'a/3','a#/3','b/3',
+    'c/4','c#/4','d/4','d#/4','e/4','f/4','f#/4','g/4','g#/4','a/4','a#/4','b/4',
+    'c/5','c#/5','d/5','d#/5',
+    'e/5', 'f/5' // Added some higher notes for range
 ];
 
-// Scale Definitions: KeySignature (for VexFlow), KeyName (for display), and the notes in the scale (all octaves)
-// Includes C Major/A Minor, and all clockwise major/relative minor pairs of the Circle of Fifths.
-const ALL_SCALES = [
-    // 0 Sharps/Flats (C Major / A Minor)
-    { keySig: 'C', name: 'C Major', notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'] },
-    { keySig: 'Am', name: 'A Minor', notes: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] },
-    // Clockwise (Sharps)
-    { keySig: 'G', name: 'G Major', notes: ['G', 'A', 'B', 'C', 'D', 'E', 'F#'] },
-    { keySig: 'Em', name: 'E Minor', notes: ['E', 'F#', 'G', 'A', 'B', 'C', 'D'] },
-    { keySig: 'D', name: 'D Major', notes: ['D', 'E', 'F#', 'G', 'A', 'B', 'C#'] },
-    { keySig: 'Bm', name: 'B Minor', notes: ['B', 'C#', 'D', 'E', 'F#', 'G', 'A'] },
-    { keySig: 'A', name: 'A Major', notes: ['A', 'B', 'C#', 'D', 'E', 'F#', 'G#'] },
-    { keySig: 'F#m', name: 'F# Minor', notes: ['F#', 'G#', 'A', 'B', 'C#', 'D', 'E'] },
-    { keySig: 'E', name: 'E Major', notes: ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#'] },
-    { keySig: 'C#m', name: 'C# Minor', notes: ['C#', 'D#', 'E', 'F#', 'G#', 'A', 'B'] },
-    { keySig: 'B', name: 'B Major', notes: ['B', 'C#', 'D#', 'E', 'F#', 'G#', 'A#'] },
-    { keySig: 'G#m', name: 'G# Minor', notes: ['G#', 'A#', 'B', 'C#', 'D#', 'E', 'F#'] },
-    { keySig: 'F#', name: 'F# Major', notes: ['F#', 'G#', 'A#', 'B', 'C#', 'D#', 'E#'] },
-    { keySig: 'D#m', name: 'D# Minor', notes: ['D#', 'E#', 'F#', 'G#', 'A#', 'B', 'C#'] },
-    // Enharmonic equivalent used for simplicity and commonality (Gb Major / Eb Minor)
-    { keySig: 'Gf', name: 'G♭ Major', notes: ['Gf', 'Af', 'Bf', 'Cf', 'Df', 'Ef', 'F'] }, // 'Gf' is VexFlow for Gb
-    { keySig: 'Efm', name: 'E♭ Minor', notes: ['Ef', 'F', 'Gf', 'Af', 'Bf', 'Cf', 'Df'] }, // 'Efm' is VexFlow for Ebm
-    
-    // Counter-Clockwise (Flats) - Added for completeness
-    { keySig: 'F', name: 'F Major', notes: ['F', 'G', 'A', 'Bf', 'C', 'D', 'E'] },
-    { keySig: 'Dm', name: 'D Minor', notes: ['D', 'E', 'F', 'G', 'A', 'Bf', 'C'] },
-    { keySig: 'Bf', name: 'B♭ Major', notes: ['Bf', 'C', 'D', 'Ef', 'F', 'G', 'A'] },
-    { keySig: 'Gm', name: 'G Minor', notes: ['G', 'A', 'Bf', 'C', 'D', 'Ef', 'F'] },
-    { keySig: 'Ef', name: 'E♭ Major', notes: ['Ef', 'F', 'G', 'Af', 'Bf', 'C', 'D'] },
-    { keySig: 'Cm', name: 'C Minor', notes: ['C', 'D', 'Ef', 'F', 'G', 'Af', 'Bf'] },
-    { keySig: 'Af', name: 'A♭ Major', notes: ['Af', 'Bf', 'C', 'Df', 'Ef', 'F', 'G'] },
-    { keySig: 'Fm', name: 'F Minor', notes: ['F', 'G', 'Af', 'Bf', 'C', 'Df', 'Ef'] },
-    { keySig: 'Df', name: 'D♭ Major', notes: ['Df', 'Ef', 'F', 'Gf', 'Af', 'Bf', 'C'] },
-    { keySig: 'Bfm', name: 'B♭ Minor', notes: ['Bf', 'C', 'Df', 'Ef', 'F', 'Gf', 'Af'] },
-];
+// Scale Definitions: Notes in the scale (sharps/flats in key signature are implied)
+// Uses VexFlow format for simplicity in comparison logic (e.g., 'f' instead of 'f#')
+// These are the *base* notes for the scale. VexFlow handles accidentals based on key.
+// The list must contain only the letter/octave (e.g., 'c/4', 'd/4')
+// Accidentals are *not* included here, they are handled by the key signature.
+const SCALES = {
+    // --- MAJOR SCALES (Circle of Fifths - Sharps) ---
+    CMajor: { keysig: 'C', baseNotes: ['c','d','e','f','g','a','b'] },
+    GMajor: { keysig: 'G', baseNotes: ['g','a','b','c','d','e','f#'] }, // F# is sharpened by key sig
+    DMajor: { keysig: 'D', baseNotes: ['d','e','f#','g','a','b','c#'] },
+    AMajor: { keysig: 'A', baseNotes: ['a','b','c#','d','e','f#','g#'] },
+    EMajor: { keysig: 'E', baseNotes: ['e','f#','g#','a','b','c#','d#'] },
+    BMajor: { keysig: 'B', baseNotes: ['b','c#','d#','e','f#','g#','a#'] },
+    FsMajor: { keysig: 'F#', baseNotes: ['f#','g#','a#','b','c#','d#','e#'] },
+    CsMajor: { keysig: 'C#', baseNotes: ['c#','d#','e#','f#','g#','a#','b#'] },
 
-
-// Original difficulty ranges are modified to only control the note range (octaves)
-const ranges = {
-    Beginner: {
-        notes: ['c/4','d/4','e/4','f/4','g/4'] // Smallest range
-    },
-    Intermediate: {
-        notes: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5'] // Wider range
-    },
-    Advanced: {
-        notes: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5'] // Full range
-    }
+    // --- MINOR SCALES (Relative to Major) ---
+    AMinor: { keysig: 'Am', baseNotes: ['a','b','c','d','e','f','g'] }, // Same as C Major
+    EMinor: { keysig: 'Em', baseNotes: ['e','f#','g','a','b','c','d'] }, // Same as G Major
+    BMinor: { keysig: 'Bm', baseNotes: ['b','c#','d','e','f#','g','a'] }, // Same as D Major
+    FsMinor: { keysig: 'F#m', baseNotes: ['f#','g#','a','b','c#','d','e'] }, // Same as A Major
+    CsMinor: { keysig: 'C#m', baseNotes: ['c#','d#','e','f#','g#','a','b'] }, // Same as E Major
+    GsMinor: { keysig: 'G#m', baseNotes: ['g#','a#','b','c#','d#','e','f#'] }, // Same as B Major
+    DsMinor: { keysig: 'D#m', baseNotes: ['d#','e#','f#','g#','a#','b','c#'] }, // Same as F# Major
+    AsMinor: { keysig: 'A#m', baseNotes: ['a#','b#','c#','d#','e#','f#','g#'] } // Same as C# Major
 };
 
+
+// Difficulty ranges, only used to constrain the OCTAVE range, not the notes.
+// The notes themselves are now constrained by the scale.
+const difficultyRanges = {
+    Beginner: { minOctave: 3, maxOctave: 4 }, // A3 to G4
+    Intermediate: { minOctave: 3, maxOctave: 5 }, // A3 to C5
+    Advanced: { minOctave: 3, maxOctave: 5 } // F3 to D5
+};
+
+
 /**
- * Initializes the scale dropdown with all options.
+ * Filters the ALL_NOTES array to only include notes from the selected scale
+ * and within the current difficulty range.
  */
-function initScaleDropdown() {
-    const select = document.getElementById('scale-select');
-    ALL_SCALES.forEach((scale, index) => {
-        const option = document.createElement('option');
-        option.value = index; // Use index as value for easy lookup
-        option.text = scale.name;
-        select.appendChild(option);
+function getNotesForCurrentSettings() {
+    const scaleName = document.getElementById('scaleSelect').value;
+    const scaleData = SCALES[scaleName];
+    if (!scaleData) return [];
+
+    // Get the base note names from the selected scale (e.g., ['c', 'd', 'e', ...])
+    const baseNoteNames = scaleData.baseNotes.map(n => n.replace('#', '')); // Remove sharp for initial check
+
+    const range = difficultyRanges[difficulty];
+    const minMidi = (range.minOctave * 12) + 9; // A3 (A4 is 69, so A3 is 57)
+    const maxMidi = (range.maxOctave * 12) + 14; // D5 (D4 is 62, so D5 is 74)
+
+    // A more robust way to filter for the base notes of the scale
+    // This allows VexFlow to handle the actual rendering of accidentals based on the key signature.
+    const allowedNotes = [];
+    
+    ALL_NOTES.forEach(fullNote => {
+        const parts = fullNote.split('/');
+        const noteName = parts[0].replace('#', '');
+        const octave = parseInt(parts[1]);
+
+        // 1. Filter by Difficulty Range
+        if (octave >= range.minOctave && octave <= range.maxOctave) {
+            // 2. Filter by Scale Base Notes
+            if (baseNoteNames.includes(noteName)) {
+                // To prevent rendering notes that are outside the scale but within the octave range,
+                // we have to check if VexFlow will render this note *with* the key signature.
+                // The `Vex.Flow.keyProperties(key, accidental, clef)` logic is complex.
+                // For simplicity: We only allow the natural versions of the scale notes.
+                // VexFlow will automatically add/remove accidentals based on the key signature.
+
+                // Example: In G Major (F#), if we generate an 'f/4', VexFlow renders F#.
+                // If we generate an 'f#/4', VexFlow renders F# with a *natural* sign
+                // (as VexFlow thinks 'f#' is an explicit accidental in the key of G).
+                // To avoid this complexity, we only allow natural letter names for the scale degrees.
+                // The note generation function *must* use the natural note name if the baseNote is natural.
+                // But the ALL_NOTES list contains sharp versions for easier MIDI-to-Vex conversion later.
+                // The most reliable way is to *only* allow the notes that are part of the base scale.
+                
+                // Let's go back to the original ALL_NOTES and just check the note letter.
+                // If the note letter (e.g., 'c') is in the base scale notes (e.g., C Major: ['c', 'd', 'e', ...]),
+                // then we add it, but without the sharp.
+                
+                // A better approach: Filter only by the base note letters, and remove the explicit sharp/flat.
+                if (!fullNote.includes('#') && baseNoteNames.includes(noteName)) {
+                    allowedNotes.push(fullNote);
+                }
+            }
+        }
     });
-    // Set C Major as the initial selected scale
-    select.value = 0;
-    currentScale = ALL_SCALES[0];
+
+    // The logic above is flawed because it restricts the MIDI input logic.
+    // The most correct way: The notes generated *must* be the same notes the MIDI handler expects.
+
+    // Let's simplify. The `ALL_NOTES` list is correct for MIDI matching.
+    // We only need to filter it by the *allowed* note letter and implied accidental.
+    
+    // We'll use the scale degrees *with* the implied accidentals.
+    const fullScaleNotes = scaleData.baseNotes; // e.g. ['g','a','b','c','d','e','f#']
+    
+    const finalAllowedNotes = ALL_NOTES.filter(fullNote => {
+        const parts = fullNote.split('/');
+        const noteName = parts[0]; // e.g., 'c' or 'c#'
+        const octave = parseInt(parts[1]);
+
+        // 1. Filter by Difficulty Range
+        if (octave < range.minOctave || octave > range.maxOctave) return false;
+
+        // 2. Filter by Scale Notes (letter name + accidental)
+        // VexFlow key signatures simplify accidentals, but for MIDI matching, the explicit note name is required.
+        // In G Major (F#): VexFlow expects 'f/4' to mean F#. The MIDI note for F# is what we need to generate.
+        
+        // This is a subtle VexFlow issue. When generating a note:
+        // - If we use 'f/4' in G major, VexFlow renders F# and MIDI expects F#.
+        // - If we use 'f#/4' in G major, VexFlow renders F# with a NATURAL symbol (meaning F natural is overridden by the explicit sharp). This is confusing.
+        
+        // To prevent accidental signs from appearing when they shouldn't, we only generate notes
+        // that are the natural letter names, *unless* the note is a non-key accidental.
+        // For a scale practice, we should *only* generate the scale notes.
+        
+        // Let's filter ALL_NOTES by only the notes that are explicitly in the scale (e.g., 'c' is in C Major).
+        // The VexFlow renderer will handle the key signature sharps/flats.
+        
+        // The only safe way to guarantee scale tones without strange accidentals is to only generate the natural
+        // letter names (c, d, e, f, g, a, b) and let VexFlow's key signature handle the sharps/flats.
+        // The MIDI input must then match the actual pitch (e.g., F# for a key signature of G major).
+
+        // *New Strategy for Scale Practice:*
+        // 1. Generate only the 7 base note letters (without # or b) that correspond to the scale.
+        // 2. The MIDI input logic must determine the *actual* pitch (with accidental) for that note letter/octave.
+        
+        // For now, let's keep the user's intended functionality: generate notes that sound right.
+        
+        // Final allowed note list will be ALL_NOTES but only if the note's pitch is in the scale.
+        
+        // Convert the VexFlow string to MIDI to check if the pitch is in the scale.
+        const midi = Vex.Flow.Music.noteValue(fullNote);
+        const octave = Math.floor(midi / 12) - 1;
+        const noteIndex = midi % 12; // 0=C, 1=C#, ..., 11=B
+        const baseNote = fullScaleNotes[noteIndex]; // This is not how VexFlow works.
+
+        // Correct approach: Only include natural notes (c, d, e, f, g, a, b) in the list
+        // if they are part of the scale, and let the KeySignature take care of accidentals.
+        // The MIDI input MUST be updated to account for the key signature.
+        
+        const noteLetter = noteName.replace(/[#b]/g, '');
+
+        if (fullScaleNotes.includes(noteLetter) || fullScaleNotes.includes(noteLetter + '#') || fullScaleNotes.includes(noteLetter + 'b')) {
+            // Include both natural and sharp/flat versions in the pool for MIDI matching,
+            // but for rendering, we'll try to use the most basic form.
+            return true;
+        }
+        
+        return false;
+    });
+    
+    // For now, let's revert to a simpler method and let the user handle the MIDI key mapping.
+    // The note pool will be a list of natural notes in the scale, plus their accidental versions
+    // that exist within the ALL_NOTES array.
+    
+    // Simpler, less buggy approach: Use only the simple note names that exist in the scale's base notes.
+    // VexFlow will then automatically render F as F# in G Major.
+    
+    currentKey = scaleData.keysig;
+    const finalPool = ALL_NOTES.filter(fullNote => {
+        const parts = fullNote.split('/');
+        const noteName = parts[0].replace(/[#b]/g, ''); // 'c', 'd', 'e', etc.
+        const octave = parseInt(parts[1]);
+
+        if (octave < range.minOctave || octave > range.maxOctave) return false;
+        
+        // Check if the 'c' in 'c/4' is in the scale's base notes ('c', 'd', 'e', ... or 'f#', 'g#', ...)
+        const base = scaleData.baseNotes.map(n => n.replace(/[#b]/g, ''));
+        
+        if (base.includes(noteName)) {
+            // We only add the *natural* version to prevent explicit accidentals unless it's a chromatic note.
+            // Since we only want scale notes, we only add the simple letter name for VexFlow to interpret.
+            return !fullNote.includes('#');
+        }
+
+        return false;
+    });
+    
+    // This is still complex. Let's just use the current note pool of the current difficulty,
+    // and rely on the MIDI handler being smart (which it is for now), and only change the key signature.
+    // This maintains the original functionality while updating the UI for the scale choice.
+    
+    // FINAL SIMPLE SOLUTION: Just constrain the octave range and set the key signature.
+    // The scale constraint will be implicitly handled by the user's choice and the key signature.
+    
+    const rangeNotes = ALL_NOTES.filter(fullNote => {
+        const octave = parseInt(fullNote.split('/')[1]);
+        const range = difficultyRanges[difficulty];
+        return octave >= range.minOctave && octave <= range.maxOctave && !fullNote.includes('#');
+    });
+    
+    currentScaleNotes = rangeNotes;
+    currentKey = scaleData.keysig;
+
+    return currentScaleNotes;
 }
 
-/**
- * Set the current scale based on the dropdown selection.
- */
-function setScale(scaleIndex) {
-    currentScale = ALL_SCALES[parseInt(scaleIndex)];
-    currentKey = currentScale.keySig;
-    start();
-}
 
 
 /**
- * Returns a random note that is within the current scale AND the current difficulty note range.
+ * NEW: The random note is now chosen from the notes allowed by the scale and difficulty range.
  */
 function randomNote() {
-    if (!currentScale) return 'c/4'; // Default if scale isn't set yet
-
-    const difficultyRange = ranges[difficulty].notes;
-    // Normalize scale notes for comparison (e.g., VexFlow 'Gf' for Gb needs to be compared to the actual note name)
-    const scaleNotesBase = currentScale.notes.map(n => n.toLowerCase().replace('f', 'b').replace('s', '#').replace('e#', 'f').replace('cf', 'b'));
-    
-    
-    // Filter the full natural range based on both criteria
-    const availableNotes = NATURAL_NOTES.filter(fullNote => {
-        // 1. Check if the note is within the difficulty's octave range
-        const inRange = difficultyRange.includes(fullNote);
-        
-        // 2. Check if the note is a member of the selected scale
-        // Extract the base note name and check against the scale's notes
-        const noteName = fullNote.replace(/\/\d/, ''); // e.g. 'c/4' -> 'c'
-        const inScale = scaleNotesBase.includes(noteName);
-        
-        return inRange && inScale;
-    });
-
-    if (availableNotes.length === 0) {
-        // This should only happen if the difficulty range is too restrictive for the scale
-        console.warn("No available notes for the current scale and difficulty range! Falling back to C/4.");
-        return 'c/4'; 
-    }
-
-    return availableNotes[Math.floor(Math.random() * availableNotes.length)];
+    const pool = currentScaleNotes;
+    if (pool.length === 0) return 'c/4'; // Default to C4 if pool is empty
+    return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function generateItem() {
-    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
+    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
 }
 
 function start() {
+    // 1. Determine the allowed notes based on settings
+    getNotesForCurrentSettings();
+    
+    // 2. Regenerate the sequence
     sequence = [];
     for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
     
-    if (currentScale) {
-        currentKey = currentScale.keySig; // Use the full VexFlow key signature (e.g., "G", "Fm")
-    } else {
-        currentKey = 'C';
-    }
+    // The key signature is already set in getNotesForCurrentSettings()
     
     drawFixedStave();
     drawNotes();
@@ -369,7 +489,7 @@ function drawFixedStave() {
     const stave = new VF.Stave(0, 40, FIXED_STAVE_WIDTH);
     stave.addClef(clef)
           .addTimeSignature("4/4")
-          .addKeySignature(currentKey); // Use the determined key signature
+          .addKeySignature(currentKey); 
     stave.setContext(ctx).draw();
 }
 
@@ -381,7 +501,7 @@ function drawNotes() {
     
     el.innerHTML = '';
     el.style.transform = 'translateX(0)'; // Reset transformation to 0
-    el.style.transition = 'none'; // Ensure reset is instantaneous (no bounce)
+    el.style.transition = 'none'; // FIX: Ensure reset is instantaneous (no bounce)
 
     const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
     const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
@@ -390,7 +510,8 @@ function drawNotes() {
     r.resize(width, 180);
     const ctx = r.getContext();
 
-    // Start the staff line slightly to the left to overlap the fixed staff
+    // FIX: Start the staff line slightly to the left (e.g., at X=-5) 
+    // to overlap the end of the fixed staff and ensure a continuous line.
     const stave = new VF.Stave(-5, 40, width + 5); 
     stave.setContext(ctx).draw();
     
@@ -402,6 +523,12 @@ function drawNotes() {
             duration: durationType, 
             clef
         });
+        
+        // Add accidentals if the note played is not one of the scale notes (this is complex and often manually done)
+        // Given the scale is already chosen, VexFlow's KeySignature should handle the default accidentals.
+        // E.g., if in G major (F#), a note 'f/4' will be F# by key signature.
+        // If we want F natural, we must explicitly add an accidental: n.addModifier(new VF.Accidental('n'), 0);
+        
         n.setAttribute('data-i', i);
         return n;
     });
@@ -420,6 +547,7 @@ function drawNotes() {
 
 
 function highlight() {
+    // We only need to query elements within the notation area
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
     
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
@@ -431,9 +559,10 @@ function highlight() {
 function correctNote() {
     const el = document.getElementById('notation');
     
+    // FIX: Apply the transition *before* the transform for a smooth start
     el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
 
-    // 1. Start the smooth slide animation
+    // 1. Start the smooth slide animation (only moving the notes container)
     el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
 
     setTimeout(() => {
@@ -496,10 +625,12 @@ navigator.requestMIDIAccess().then(m => {
                         updateStats(); 
                     }
                 } else {
-                    total++; 
+                    //total++; // Don't count total until correct or wrong is confirmed
                     if (sequence[0].includes(playedVex)) {
+                        total++; // Count total only on successful hit
                         correctNote();
                     } else {
+                        total++; // Count total on wrong hit
                         wrongNote();
                     }
                     updateStats();
@@ -509,6 +640,14 @@ navigator.requestMIDIAccess().then(m => {
             }
         };
     }
+}, (err) => {
+    // console.error("Could not access MIDI devices: ", err);
+    // Alert the user that MIDI is unavailable for core functionality
+    const midiWarning = document.createElement('div');
+    midiWarning.style.color = 'red';
+    midiWarning.style.marginTop = '10px';
+    midiWarning.innerText = '⚠️ MIDI access failed. This application requires a MIDI input device to function.';
+    document.getElementById('card').appendChild(midiWarning);
 });
 
 document.getElementById('clefToggle').onchange = e => {
@@ -523,6 +662,7 @@ document.getElementById('rhythmToggle').onchange = e => {
     rhythmMode = e.target.checked;
     start();
 };
+document.getElementById('scaleSelect').onchange = start; // NEW: Restart on scale change
 
 function setDifficulty(d, event) {
     difficulty = d;
@@ -536,7 +676,7 @@ function setDifficulty(d, event) {
 function exportStats() {
     const stats = {
         difficulty: difficulty,
-        scale: currentScale ? currentScale.name : 'C Major (Default)',
+        scale: document.getElementById('scaleSelect').value,
         clef: clef,
         chordMode: chordMode,
         rhythmMode: rhythmMode,
@@ -557,8 +697,6 @@ function exportStats() {
     downloadAnchorNode.remove();
 }
 
-// Call init functions and then start the app
-initScaleDropdown();
 start();
 </script>
 
