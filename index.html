@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.4 - Fixed Stave</title>
+<title>MelodyFlow v5.3 - Seamless Stave</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -103,34 +103,35 @@ button.active {
     border-radius: 16px;
     border: 2px solid var(--primary);
     position: relative;
-    /* Use flexbox to align the fixed stave and the scrolling stave */
     display: flex;
 }
 
 /* New element for the non-moving part */
 #fixed-stave {
-    width: 150px; /* Width must be large enough for clef, key, and time sig */
+    width: 150px; 
     height: 180px;
-    flex-shrink: 0; /* Important: prevents the fixed stave from shrinking */
+    flex-shrink: 0; 
     position: relative;
-    z-index: 10; /* Ensures it sits above the scrolling staff */
-    background-color: var(--surface); /* Match container background for clean look */
+    z-index: 10; 
+    background-color: var(--surface); 
 }
 
 /* The element that holds the scrolling notes */
 #notation {
-    width: calc(760px - 150px); /* Adjust width to fill the rest of the window */
+    /* Use a negative margin to visually overlap the staves and hide the gap */
+    margin-left: -5px; 
+    width: calc(760px - 150px + 5px); /* Adjusted width to compensate for negative margin */
     height: 180px;
     position: relative;
-    /* The transition now only applies to the notes container */
-    transition: transform 0.3s ease-out; 
+    /* FIX: The transition will be applied and removed dynamically in JS to prevent "bounce" */
+    /* Remove the static transition line here */
 }
 
 
 /* Reduced shake animation and targeted to notation area */
 .wrong-flash {
     animation: shake .3s;
-    background-color: var(--wrong-flash); /* Flash color on the window */
+    background-color: var(--wrong-flash); 
     border-color: #E35050 !important;
 }
 
@@ -187,6 +188,7 @@ const VF = Vex.Flow;
 const NOTES_VISIBLE = 8;
 const NOTE_WIDTH = 100; // Estimated width of a note block for sliding
 const FIXED_STAVE_WIDTH = 150; // Must match CSS
+const ANIMATION_DURATION = 300; // ms (0.3s)
 
 let difficulty = 'Beginner';
 let clef = 'treble';
@@ -229,7 +231,6 @@ function start() {
     const keys = ranges[difficulty].keys;
     currentKey = keys[Math.floor(Math.random() * keys.length)];
     
-    // Draw both the fixed and the scrolling parts
     drawFixedStave();
     drawNotes();
 }
@@ -258,20 +259,21 @@ function drawFixedStave() {
  */
 function drawNotes() {
     const el = document.getElementById('notation');
-    const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
     
     el.innerHTML = '';
-    el.style.transform = 'translateX(0)'; // Reset transformation
+    el.style.transform = 'translateX(0)'; // Reset transformation to 0
+    el.style.transition = 'none'; // FIX: Ensure reset is instantaneous (no bounce)
 
-    const width = NOTES_VISIBLE * NOTE_WIDTH + 50; // Total width needed for all notes
+    const noteAreaWidth = 760 - FIXED_STAVE_WIDTH;
+    const width = NOTES_VISIBLE * NOTE_WIDTH + 50; 
     
     const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
     r.resize(width, 180);
     const ctx = r.getContext();
 
-    // The staff for notes starts at position 0 inside its container
-    // We only want the staff lines, not the clef/key/time again
-    const stave = new VF.Stave(0, 40, width);
+    // FIX: Start the staff line slightly to the left (e.g., at X=-5) 
+    // to overlap the end of the fixed staff and ensure a continuous line.
+    const stave = new VF.Stave(-5, 40, width + 5); 
     stave.setContext(ctx).draw();
     
     const durationType = rhythmMode ? '8' : 'q';
@@ -280,7 +282,7 @@ function drawNotes() {
         const n = new VF.StaveNote({
             keys,
             duration: durationType, 
-            clef // Clef is needed for positioning the noteheads correctly
+            clef
         });
         n.setAttribute('data-i', i);
         return n;
@@ -292,8 +294,7 @@ function drawNotes() {
     });
     
     voice.addTickables(notes);
-    // Format the notes to fit within the drawing width
-    new VF.Formatter().joinVoices([voice]).format([voice], width - 10);
+    new VF.Formatter().joinVoices([voice]).format([voice], width);
     voice.draw(ctx, stave);
 
     highlight();
@@ -301,20 +302,21 @@ function drawNotes() {
 
 
 function highlight() {
-    // Reset fill color for all noteheads
+    // We only need to query elements within the notation area
     document.querySelectorAll('#notation .vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
     
-    // Find the target note (index 0)
     const targetNoteElement = document.querySelector('#notation [data-i="0"]');
     if (!targetNoteElement) return;
     
-    // Highlight the target note
     targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
 }
 
 function correctNote() {
     const el = document.getElementById('notation');
     
+    // FIX: Apply the transition *before* the transform for a smooth start
+    el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
+
     // 1. Start the smooth slide animation (only moving the notes container)
     el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
 
@@ -327,22 +329,17 @@ function correctNote() {
         correct++; streak++; best = Math.max(best, streak);
         updateStats();
         
-        // 4. Redraw the scrolling notes (which instantly resets to position 0)
+        // 4. Redraw the scrolling notes (instant reset to position 0)
         drawNotes(); 
-
-        // 5. Redraw the fixed stave only if the key signature changed
-        // For simplicity, we assume the key signature is fixed until the next start(), but
-        // for robustness, we call drawFixedStave to ensure the staff line is continuous
-        drawFixedStave(); 
         
-    }, 300); // Matches the 0.3s CSS transition
+    }, ANIMATION_DURATION); 
 }
 
 function wrongNote() {
     const windowEl = document.getElementById('notation-window');
     windowEl.classList.add('wrong-flash');
     streak = 0;
-    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); // Short flash
+    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300); 
 }
 
 function updateStats() {
@@ -380,7 +377,7 @@ navigator.requestMIDIAccess().then(m => {
                         pressedKeys.clear(); 
                     } else if (!targetChord.includes(playedVex)) {
                         wrongNote();
-                        updateStats(); // Increments total, registers wrong answer
+                        updateStats(); 
                     }
                 } else {
                     total++; 
