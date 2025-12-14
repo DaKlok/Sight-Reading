@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.3 (MIDI Prompt Fix)</title>
+<title>MelodyFlow v5.4 (Final MIDI Fix)</title>
 
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 
@@ -41,6 +41,7 @@ body {
     max-width: 960px;
     text-align: center;
     box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    position: relative; /* Needed for the overlay */
 }
 
 h1 { color: var(--primary); margin-bottom: 10px; }
@@ -65,15 +66,6 @@ button {
 button.active {
     background: var(--primary);
     color: white;
-}
-
-#midi-connect-button {
-    background-color: var(--primary);
-    color: white;
-    border: 1px solid var(--primary);
-}
-#midi-connect-button:hover {
-    background-color: #55448C;
 }
 
 .toggle {
@@ -149,10 +141,10 @@ button.active {
     gap: 20px;
     font-size: 0.85rem;
     margin-top: 15px;
-    flex-wrap: wrap; /* Added for responsiveness */
+    flex-wrap: wrap;
 }
 
-/* New MIDI Status Indicator Styles */
+/* MIDI Status Indicator Styles */
 #midi-status-group {
     display: flex;
     align-items: center;
@@ -164,7 +156,7 @@ button.active {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: var(--midi-pending);
+    background-color: var(--midi-disconnected);
     box-shadow: 0 0 5px rgba(0,0,0,0.1);
 }
 
@@ -175,6 +167,39 @@ button.active {
 #midi-indicator.disconnected {
     background-color: var(--midi-disconnected);
     box-shadow: 0 0 8px var(--midi-disconnected);
+}
+
+/* New: Full-screen MIDI Overlay */
+#midi-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    transition: opacity 0.3s;
+}
+
+#midi-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#overlay-button {
+    background: var(--primary);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 24px;
+    font-size: 1.1rem;
+    margin-top: 20px;
+    cursor: pointer;
 }
 </style>
 </head>
@@ -203,13 +228,19 @@ button.active {
 <div class="stats">
     <div id="midi-status-group">
         <span id="midi-indicator"></span>
-        <span id="midi-text" style="color: var(--primary);">Click Connect MIDI</span>
-        <button id="midi-connect-button" onclick="connectMidi()">Connect MIDI</button>
+        <span id="midi-text">Awaiting Connection...</span>
     </div>
     <div>Accuracy: <span id="accuracy">100%</span></div>
     <div>Streak: <span id="streak">0</span></div>
     <div>Best: <span id="best">0</span></div>
     <button onclick="exportStats()">Export Stats 📊</button>
+</div>
+
+<div id="midi-overlay">
+    <h2>🎹 Connect Your MIDI Device</h2>
+    <p>We need your permission to access your MIDI controller. Please click the button below to start the connection process and look for a permission prompt from your browser.</p>
+    <button id="overlay-button" onclick="connectMidi()">Connect MIDI and Start</button>
+    <p id="overlay-status" style="margin-top: 20px; color: var(--primary);">Loading Web MIDI...</p>
 </div>
 </div>
 
@@ -223,6 +254,7 @@ let clef = 'treble';
 let chordMode = false;
 let rhythmMode = false;
 let currentKey = 'C';
+let midiAccessGranted = false; // New flag to control game start
 
 let sequence = [];
 let total = 0, correct = 0;
@@ -253,6 +285,9 @@ function generateItem() {
 }
 
 function start() {
+    // Only proceed if MIDI access is granted or if we are in an offline, non-MIDI mode (which isn't implemented here, so we rely on the flag)
+    if (!midiAccessGranted) return; 
+
     sequence = [];
     for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
     
@@ -324,7 +359,7 @@ function correctNote() {
         sequence.push(generateItem());
         
         correct++; streak++; best = Math.max(best, streak);
-        updateStats(true); // Indicate success for stat update
+        updateStats(true);
         
         draw();
     }, 400); 
@@ -339,7 +374,6 @@ function wrongNote() {
 
 function updateStats(isCorrect) {
     total++;
-    // We only update stats display here, the total/correct logic is in correctNote/MIDI handler
     document.getElementById('accuracy').innerText =
         (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
     document.getElementById('streak').innerText = streak;
@@ -351,45 +385,48 @@ function midiToVex(m) {
     return `${n[m%12]}${m%12 === 1 || m%12 === 3 || m%12 === 6 || m%12 === 8 || m%12 === 10 ? '#' : ''}/${Math.floor(m/12)-1}`;
 }
 
-// --- MIDI Connection and Input Logic (Updated) ---
+// --- MIDI Connection and Input Logic ---
 
 const pressedKeys = new Set(); 
-const midiConnectButton = document.getElementById('midi-connect-button');
+const midiOverlay = document.getElementById('midi-overlay');
+const overlayStatus = document.getElementById('overlay-status');
 const midiIndicator = document.getElementById('midi-indicator');
 const midiText = document.getElementById('midi-text');
 
 function updateMidiStatus(status, message) {
     midiIndicator.classList.remove('connected', 'disconnected');
     midiText.style.color = 'var(--outline)';
+    overlayStatus.innerText = message;
     
     if (status === 'connected') {
+        midiAccessGranted = true;
         midiIndicator.classList.add('connected');
         midiText.style.color = 'var(--midi-connected)';
-        midiConnectButton.style.display = 'none'; // Hide button on success
+        midiOverlay.classList.add('hidden'); // Hide the overlay
+        start(); // Start the game now that MIDI is connected
     } else if (status === 'disconnected') {
+        midiAccessGranted = false;
         midiIndicator.classList.add('disconnected');
         midiText.style.color = 'var(--midi-disconnected)';
-        midiConnectButton.style.display = 'inline-block';
+        midiOverlay.classList.remove('hidden'); // Show overlay on failure
     } else { // pending/initial
         midiIndicator.style.backgroundColor = 'var(--midi-pending)';
         midiText.style.color = 'var(--primary)';
-        midiConnectButton.style.display = 'inline-block';
     }
     midiText.innerText = message;
 }
 
 function handleMidiSuccess(midiAccess) {
-    const inputs = midiAccess.inputs.values();
     const inputCount = Array.from(midiAccess.inputs).length;
     
     if (inputCount === 0) {
-        updateMidiStatus('disconnected', 'No MIDI device found.');
+        updateMidiStatus('disconnected', 'Success! No MIDI device detected. Check your connections.');
         return;
     }
     
     updateMidiStatus('connected', `Connected to ${inputCount} MIDI input(s)`);
 
-    for (let input of inputs) {
+    for (let input of midiAccess.inputs.values()) {
         input.onmidimessage = e => {
             const status = e.data[0];
             const midiNote = e.data[1];
@@ -401,7 +438,6 @@ function handleMidiSuccess(midiAccess) {
                 
                 if (chordMode) {
                     const targetChord = sequence[0];
-                    // Check if pressedKeys contains ALL target notes AND only target notes
                     const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
 
                     if (allMatch) {
@@ -428,17 +464,15 @@ function handleMidiSuccess(midiAccess) {
 
 function handleMidiFailure(error) {
     console.error('Failed to get MIDI access:', error);
-    updateMidiStatus('disconnected', 'MIDI Access Denied or Browser Error.');
+    updateMidiStatus('disconnected', `MIDI Access Denied! Please reload and try again. Error: ${error.name}`);
 }
 
 window.connectMidi = function() {
     if (navigator.requestMIDIAccess) {
-        midiText.innerText = 'Requesting access...';
-        midiText.style.color = 'var(--primary)';
-
+        overlayStatus.innerText = 'Browser is requesting permission... Check the top-left corner of your window.';
         navigator.requestMIDIAccess().then(handleMidiSuccess, handleMidiFailure);
     } else {
-        updateMidiStatus('disconnected', 'Web MIDI not supported by your browser.');
+        updateMidiStatus('disconnected', 'Web MIDI API is not supported by this browser/platform.');
     }
 }
 
@@ -458,6 +492,8 @@ document.getElementById('rhythmToggle').onchange = e => {
 };
 
 function setDifficulty(d, event) {
+    if (!midiAccessGranted) return; // Prevent starting if not connected
+
     difficulty = d;
     document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
     if(event && event.target) {
@@ -489,9 +525,9 @@ function exportStats() {
     downloadAnchorNode.remove();
 }
 
-// Start the game interface, but defer MIDI connection until button click
-updateMidiStatus('pending', 'Click Connect MIDI');
-start();
+// Initial draw of the staff (before MIDI connection)
+draw(); 
+updateMidiStatus('pending', 'Click Connect MIDI to begin.');
 </script>
 
 </body>
