@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite Flowkey Sight Reading v3.1.0</title>
+    <title>Infinite Flowkey Sight Reading v3.2.0</title>
     
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     
     <style>
         :root {
-            --primary: #6750A4;       /* Deep Violet */
-            --surface: #F7F2FA;       /* Soft Lavender Surface */
-            --background: #FEF7FF;    /* Near-White Background */
+            --primary: #6750A4;       
+            --surface: #F7F2FA;       
+            --background: #FEF7FF;    
             --outline: #79747E;
             --target-note: #00A96B;   /* Bright Green for Target */
             --default-note: #6750A4;  /* Default Note Color */
-            --correct-flash: #EADDFF; /* Light Purple Flash (Success) */
-            --wrong-flash: #F2B8B5;   /* Light Red/Error (Wrong Note) */
+            --correct-flash: #EADDFF; 
+            --wrong-flash: #F2B8B5;   
             --text-color: #1C1B1F;
         }
 
@@ -116,6 +116,11 @@
             margin: 0;
             display: flex;
         }
+        
+        /* Ensures individual notes can be targeted for coloring */
+        .vf-note-head path {
+            transition: fill 0.1s ease; 
+        }
 
         .feedback {
             font-size: 1.2rem;
@@ -149,7 +154,7 @@
 <div class="container" id="app-card">
     <div class="header-content">
         <h1>MelodyFlow</h1>
-        <span class="version-tag">v3.1.0</span>
+        <span class="version-tag">v3.2.0</span>
     </div>
     <div id="status" class="status-chip">Waiting for Roland FP-30...</div>
 
@@ -222,6 +227,7 @@
             if (currentNoteIndex < sequence.length) {
                 if (played === sequence[currentNoteIndex]) {
                     triggerSuccess();
+                    // Advance index and visual state
                     advanceNote();
                 } else {
                     triggerWrongNote();
@@ -257,6 +263,7 @@
         for(let i = 0; i < initialMeasures; i++) {
             renderNextMeasure(); 
         }
+        // Initial highlight of the first note
         highlightTargetNote();
     }
 
@@ -269,23 +276,32 @@
 
     // --- Scrolling and Animation ---
     function advanceNote() {
-        // 1. Calculate and apply scroll
+        // 1. Reset color of the JUST played note
+        const playedElement = document.querySelector(`[data-note-index="${currentNoteIndex}"]`);
+        if (playedElement) {
+            const heads = playedElement.querySelectorAll('path');
+            heads.forEach(path => {
+                path.style.fill = var2hex('--default-note'); 
+            });
+        }
+        
+        // 2. Calculate and apply scroll
         const widthToShift = noteWidths[currentNoteIndex];
         scrollerOffset += widthToShift;
         const scroller = document.getElementById('notation-scroller');
         scroller.style.transform = `translateX(-${scrollerOffset}px)`;
         
-        // 2. Update stats and index
+        // 3. Update stats and index
         currentNoteIndex++;
         notesCompleted++;
         document.getElementById('notes-completed').innerText = notesCompleted;
 
-        // 3. Check for measure boundary to render new content
+        // 4. Check for measure boundary to render new content
         if (currentNoteIndex % notesPerMeasure === 0) {
             renderNextMeasure();
         }
         
-        // 4. Highlight next note after a short delay (for animation sync)
+        // 5. Highlight the NEW target note after a short delay (for animation sync)
         setTimeout(highlightTargetNote, 100); 
     }
     
@@ -381,21 +397,24 @@
         measureIndex++;
     }
     
-    // Logic to visually highlight the current target note
+    // Logic to visually highlight ONLY the current target note
     function highlightTargetNote() {
-        // Step 1: Clear ALL previous highlights
-        document.querySelectorAll('.vf-measure-container g path').forEach(path => {
-            path.style.fill = var2hex('--default-note'); 
-            path.style.transition = 'fill 0.1s ease'; 
-        });
-        
-        // Step 2: Highlight ONLY the target note
+        // Find the next note by its data-note-index attribute
         const targetElement = document.querySelector(`[data-note-index="${currentNoteIndex}"]`);
+        
+        // Check if there are notes left to play
         if (targetElement) {
             const noteHeads = targetElement.querySelectorAll('path');
             noteHeads.forEach(path => {
                 path.style.fill = var2hex('--target-note'); 
             });
+        } else if (currentNoteIndex >= sequence.length) {
+             document.getElementById('feedback-text').innerText = "Generating new notes...";
+             // If we run out of notes before the renderer catches up, ensure a new measure is ready
+             if (currentNoteIndex % notesPerMeasure !== 0) {
+                 renderNextMeasure();
+                 setTimeout(highlightTargetNote, 100);
+             }
         }
     }
     
