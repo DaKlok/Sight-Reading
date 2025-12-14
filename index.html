@@ -1,534 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MelodyFlow v5.4 (Final MIDI Fix)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelodyFlow | Material 3</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    
+    <style>
+        :root {
+            --primary: #6750A4;
+            --surface: #F7F2FA;
+            --background: #FEF7FF;
+            --outline: #79747E;
+            --success: #B6F2AF;
+            --error: #FFD8D5; /* Added error color */
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #1C1B1F;
+        }
 
-<style>
-:root {
-    --primary: #6750A4;
-    --surface: #F7F2FA;
-    --background: #FEF7FF;
-    --outline: #79747E;
-    --target-note: #00A96B;
-    --default-note: #6750A4;
-    --wrong-flash: #F2B8B5;
+        /* Material 3 Card Style */
+        .container {
+            background-color: var(--surface);
+            padding: 40px;
+            border-radius: 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #EADDFF;
+            transition: all 0.3s ease;
+        }
 
-    /* MIDI Status Colors */
-    --midi-connected: #00A96B;
-    --midi-disconnected: #CF1B1B;
-    --midi-pending: #F2B8B5;
-}
+        h1 { color: var(--primary); margin-top: 0; font-weight: 400; font-size: 2rem; }
 
-body {
-    font-family: 'Segoe UI', Roboto, sans-serif;
-    background: var(--background);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-}
+        .status-chip {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: #E6E1E5;
+        }
 
-.container {
-    background: var(--surface);
-    padding: 32px;
-    border-radius: 28px;
-    width: 95%;
-    max-width: 960px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,.15);
-    position: relative; /* Needed for the overlay */
-}
+        .status-ready { background: #D0BCFF; color: #381E72; }
+        .status-error { background: var(--error); color: #B3261E; }
+        .status-connected { background: var(--success); color: #1E6631; } /* New connected status */
+        .status-pending { background: #FFD6AA; color: #7D5200; } /* New pending status */
 
-h1 { color: var(--primary); margin-bottom: 10px; }
 
-.controls, .toggles {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-}
+        /* Difficulty Selector */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
 
-button {
-    border: 1px solid var(--outline);
-    background: transparent;
-    padding: 8px 18px;
-    border-radius: 18px;
-    cursor: pointer;
-    transition: background-color .2s, color .2s;
-}
+        button {
+            border: 1px solid var(--outline);
+            background: transparent;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-button.active {
-    background: var(--primary);
-    color: white;
-}
+        button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        /* New button for MIDI connection */
+        #midi-connect-btn {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            margin-bottom: 20px;
+            display: none; /* Hidden by default, shown by JS if MIDI is supported */
+        }
 
-.toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-}
+        #notation {
+            background: white;
+            border-radius: 16px;
+            margin: 20px 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
 
-.toggle input {
-    appearance: none;
-    width: 34px;
-    height: 18px;
-    background: #bbb;
-    border-radius: 9px;
-    position: relative;
-}
+        .feedback {
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 1.5em;
+            color: var(--primary);
+        }
 
-.toggle input:checked { background: var(--primary); }
+        /* Flash animation for correct notes */
+        .correct {
+            animation: success-flash 0.4s ease;
+        }
 
-.toggle input::after {
-    content: '';
-    width: 14px;
-    height: 14px;
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform .2s;
-}
-
-.toggle input:checked::after {
-    transform: translateX(16px);
-}
-
-#notation-window {
-    width: 760px;
-    height: 180px;
-    margin: 20px auto;
-    overflow: hidden;
-    border-radius: 16px;
-    border: 2px solid var(--primary);
-    position: relative;
-    transition: background-color .3s, border-color .3s;
-}
-
-#notation {
-    transition: transform 0.4s cubic-bezier(.4,0,.2,1); 
-}
-
-.slide-left {
-    transform: translateX(-100px); 
-}
-
-.wrong-flash {
-    animation: shake .3s;
-    background-color: var(--wrong-flash); 
-    border-color: var(--midi-disconnected) !important;
-}
-
-@keyframes shake {
-    0% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    50% { transform: translateX(2px); }
-    75% { transform: translateX(-2px); }
-    100% { transform: translateX(0); }
-}
-
-.stats {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    font-size: 0.85rem;
-    margin-top: 15px;
-    flex-wrap: wrap;
-}
-
-/* MIDI Status Indicator Styles */
-#midi-status-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
-}
-
-#midi-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: var(--midi-disconnected);
-    box-shadow: 0 0 5px rgba(0,0,0,0.1);
-}
-
-#midi-indicator.connected {
-    background-color: var(--midi-connected);
-    box-shadow: 0 0 8px var(--midi-connected);
-}
-#midi-indicator.disconnected {
-    background-color: var(--midi-disconnected);
-    box-shadow: 0 0 8px var(--midi-disconnected);
-}
-
-/* New: Full-screen MIDI Overlay */
-#midi-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 28px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    transition: opacity 0.3s;
-}
-
-#midi-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-
-#overlay-button {
-    background: var(--primary);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 24px;
-    font-size: 1.1rem;
-    margin-top: 20px;
-    cursor: pointer;
-}
-</style>
+        @keyframes success-flash {
+            0% { background-color: var(--surface); }
+            50% { background-color: var(--success); transform: scale(1.02); }
+            100% { background-color: var(--surface); }
+        }
+    </style>
 </head>
-
 <body>
 
-<div class="container" id="card">
-<h1>MelodyFlow</h1>
+<div class="container" id="app-card">
+    <h1>MelodyFlow</h1>
+    
+    <div id="status" class="status-chip status-pending">Click Connect MIDI</div>
+    <button id="midi-connect-btn" onclick="connectMidi()">Connect MIDI</button>
 
-<div class="controls">
-    <button id="btn-beginner" class="active" onclick="setDifficulty('Beginner', event)">Beginner</button>
-    <button id="btn-intermediate" onclick="setDifficulty('Intermediate', event)">Intermediate</button>
-    <button id="btn-advanced" onclick="setDifficulty('Advanced', event)">Advanced</button>
-</div>
-
-<div class="toggles">
-    <label class="toggle">Bass Clef <input type="checkbox" id="clefToggle"></label>
-    <label class="toggle">Chord Mode <input type="checkbox" id="chordToggle"></label>
-    <label class="toggle">Rhythm Mode <input type="checkbox" id="rhythmToggle"></label>
-</div>
-
-<div id="notation-window">
-    <div id="notation"></div>
-</div>
-
-<div class="stats">
-    <div id="midi-status-group">
-        <span id="midi-indicator"></span>
-        <span id="midi-text">Awaiting Connection...</span>
+    <div class="btn-group">
+        <button id="btn-Beginner" class="active" onclick="setDiff('Beginner')">Beginner</button>
+        <button id="btn-Intermediate" onclick="setDiff('Intermediate')">Intermediate</button>
+        <button id="btn-Advanced" onclick="setDiff('Advanced')">Advanced</button>
     </div>
-    <div>Accuracy: <span id="accuracy">100%</span></div>
-    <div>Streak: <span id="streak">0</span></div>
-    <div>Best: <span id="best">0</span></div>
-    <button onclick="exportStats()">Export Stats 📊</button>
-</div>
 
-<div id="midi-overlay">
-    <h2>🎹 Connect Your MIDI Device</h2>
-    <p>We need your permission to access your MIDI controller. Please click the button below to start the connection process and look for a permission prompt from your browser.</p>
-    <button id="overlay-button" onclick="connectMidi()">Connect MIDI and Start</button>
-    <p id="overlay-status" style="margin-top: 20px; color: var(--primary);">Loading Web MIDI...</p>
-</div>
+    <div id="notation"></div>
+
+    <div class="feedback" id="feedback-text">Play the note on the staff</div>
+    <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">Last MIDI Note: <span id="midi-val">--</span></div>
 </div>
 
 <script>
-const VF = Vex.Flow;
-const NOTES_VISIBLE = 8;
-const NOTE_WIDTH = 100;
-
-let difficulty = 'Beginner';
-let clef = 'treble';
-let chordMode = false;
-let rhythmMode = false;
-let currentKey = 'C';
-let midiAccessGranted = false; // New flag to control game start
-
-let sequence = [];
-let total = 0, correct = 0;
-let streak = 0, best = 0;
-
-const ranges = {
-    Beginner: {
-        keys: ['C'],
-        notes: ['c/4','d/4','e/4','f/4','g/4']
-    },
-    Intermediate: {
-        keys: ['G', 'F', 'D'],
-        notes: ['a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5']
-    },
-    Advanced: {
-        keys: ['A', 'E', 'Eb', 'B'],
-        notes: ['f/3','g/3','a/3','b/3','c/4','d/4','e/4','f/4','g/4','a/4','b/4','c/5','d/5']
-    }
-};
-
-function randomNote() {
-    const pool = ranges[difficulty].notes;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function generateItem() {
-    return chordMode ? [randomNote(), randomNote()] : [randomNote()];
-}
-
-function start() {
-    // Only proceed if MIDI access is granted or if we are in an offline, non-MIDI mode (which isn't implemented here, so we rely on the flag)
-    if (!midiAccessGranted) return; 
-
-    sequence = [];
-    for (let i = 0; i < NOTES_VISIBLE; i++) sequence.push(generateItem());
+    const VF = Vex.Flow;
+    let difficulty = 'Beginner';
+    let targetNote = 'c/4';
     
-    const keys = ranges[difficulty].keys;
-    currentKey = keys[Math.floor(Math.random() * keys.length)];
-    
-    draw();
-}
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('midi-connect-btn');
 
-function draw() {
-    const el = document.getElementById('notation');
-    
-    el.classList.remove('slide-left');
-    el.style.transform = 'translateX(0)';
-    el.innerHTML = '';
-
-    const width = NOTES_VISIBLE * NOTE_WIDTH + 100;
-    
-    const r = new VF.Renderer(el, VF.Renderer.Backends.SVG);
-    r.resize(width, 180);
-    const ctx = r.getContext();
-
-    const stave = new VF.Stave(10, 40, width - 20);
-    stave.addClef(clef)
-          .addTimeSignature("4/4")
-          .addKeySignature(currentKey);
-    stave.setContext(ctx).draw();
-    
-    const durationType = rhythmMode ? '8' : 'q';
-
-    const notes = sequence.map((keys, i) => {
-        const n = new VF.StaveNote({
-            keys,
-            duration: durationType,
-            clef
-        });
-        n.setAttribute('data-i', i);
-        return n;
-    });
-
-    const voice = new VF.Voice({ 
-        num_beats: NOTES_VISIBLE * (rhythmMode ? 0.5 : 1),
-        beat_value: 4 
-    });
-    
-    voice.addTickables(notes);
-    new VF.Formatter().joinVoices([voice]).format([voice], width - 40);
-    voice.draw(ctx, stave);
-
-    highlight();
-}
-
-function highlight() {
-    document.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--default-note)');
-    
-    const targetNoteElement = document.querySelector('[data-i="0"]');
-    if (!targetNoteElement) return;
-    
-    targetNoteElement.querySelectorAll('.vf-notehead path').forEach(p => p.style.fill = 'var(--target-note)');
-}
-
-function correctNote() {
-    const el = document.getElementById('notation');
-    
-    el.style.transform = `translateX(-${NOTE_WIDTH}px)`;
-
-    setTimeout(() => {
-        sequence.shift();
-        sequence.push(generateItem());
-        
-        correct++; streak++; best = Math.max(best, streak);
-        updateStats(true);
-        
-        draw();
-    }, 400); 
-}
-
-function wrongNote() {
-    const windowEl = document.getElementById('notation-window');
-    windowEl.classList.add('wrong-flash');
-    streak = 0;
-    setTimeout(() => windowEl.classList.remove('wrong-flash'), 300);
-}
-
-function updateStats(isCorrect) {
-    total++;
-    document.getElementById('accuracy').innerText =
-        (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%';
-    document.getElementById('streak').innerText = streak;
-    document.getElementById('best').innerText = best;
-}
-
-function midiToVex(m) {
-    const n = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
-    return `${n[m%12]}${m%12 === 1 || m%12 === 3 || m%12 === 6 || m%12 === 8 || m%12 === 10 ? '#' : ''}/${Math.floor(m/12)-1}`;
-}
-
-// --- MIDI Connection and Input Logic ---
-
-const pressedKeys = new Set(); 
-const midiOverlay = document.getElementById('midi-overlay');
-const overlayStatus = document.getElementById('overlay-status');
-const midiIndicator = document.getElementById('midi-indicator');
-const midiText = document.getElementById('midi-text');
-
-function updateMidiStatus(status, message) {
-    midiIndicator.classList.remove('connected', 'disconnected');
-    midiText.style.color = 'var(--outline)';
-    overlayStatus.innerText = message;
-    
-    if (status === 'connected') {
-        midiAccessGranted = true;
-        midiIndicator.classList.add('connected');
-        midiText.style.color = 'var(--midi-connected)';
-        midiOverlay.classList.add('hidden'); // Hide the overlay
-        start(); // Start the game now that MIDI is connected
-    } else if (status === 'disconnected') {
-        midiAccessGranted = false;
-        midiIndicator.classList.add('disconnected');
-        midiText.style.color = 'var(--midi-disconnected)';
-        midiOverlay.classList.remove('hidden'); // Show overlay on failure
-    } else { // pending/initial
-        midiIndicator.style.backgroundColor = 'var(--midi-pending)';
-        midiText.style.color = 'var(--primary)';
-    }
-    midiText.innerText = message;
-}
-
-function handleMidiSuccess(midiAccess) {
-    const inputCount = Array.from(midiAccess.inputs).length;
-    
-    if (inputCount === 0) {
-        updateMidiStatus('disconnected', 'Success! No MIDI device detected. Check your connections.');
-        return;
-    }
-    
-    updateMidiStatus('connected', `Connected to ${inputCount} MIDI input(s)`);
-
-    for (let input of midiAccess.inputs.values()) {
-        input.onmidimessage = e => {
-            const status = e.data[0];
-            const midiNote = e.data[1];
-            const velocity = e.data[2];
-            const playedVex = midiToVex(midiNote);
-
-            if (status === 144 && velocity > 0) { // Note On
-                pressedKeys.add(playedVex);
-                
-                if (chordMode) {
-                    const targetChord = sequence[0];
-                    const allMatch = targetChord.every(note => pressedKeys.has(note)) && (targetChord.length === pressedKeys.size);
-
-                    if (allMatch) {
-                        correctNote();
-                        pressedKeys.clear(); 
-                    } else if (!targetChord.includes(playedVex)) {
-                        wrongNote();
-                        updateStats(false);
-                    }
-                } else {
-                    if (sequence[0].includes(playedVex)) {
-                        correctNote();
-                    } else {
-                        wrongNote();
-                    }
-                    updateStats(sequence[0].includes(playedVex));
-                }
-            } else if (status === 128 || (status === 144 && velocity === 0)) { // Note Off
-                pressedKeys.delete(playedVex);
-            }
-        };
-    }
-}
-
-function handleMidiFailure(error) {
-    console.error('Failed to get MIDI access:', error);
-    updateMidiStatus('disconnected', `MIDI Access Denied! Please reload and try again. Error: ${error.name}`);
-}
-
-window.connectMidi = function() {
-    if (navigator.requestMIDIAccess) {
-        overlayStatus.innerText = 'Browser is requesting permission... Check the top-left corner of your window.';
-        navigator.requestMIDIAccess().then(handleMidiSuccess, handleMidiFailure);
-    } else {
-        updateMidiStatus('disconnected', 'Web MIDI API is not supported by this browser/platform.');
-    }
-}
-
-// --- UI Control Functions ---
-
-document.getElementById('clefToggle').onchange = e => {
-    clef = e.target.checked ? 'bass' : 'treble';
-    start(); 
-};
-document.getElementById('chordToggle').onchange = e => {
-    chordMode = e.target.checked;
-    start();
-};
-document.getElementById('rhythmToggle').onchange = e => {
-    rhythmMode = e.target.checked;
-    start();
-};
-
-function setDifficulty(d, event) {
-    if (!midiAccessGranted) return; // Prevent starting if not connected
-
-    difficulty = d;
-    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-    if(event && event.target) {
-        event.target.classList.add('active');
-    }
-    start();
-}
-
-function exportStats() {
-    const stats = {
-        difficulty: difficulty,
-        clef: clef,
-        chordMode: chordMode,
-        rhythmMode: rhythmMode,
-        totalAttempts: total,
-        totalCorrect: correct,
-        accuracy: (total === 0 ? 100 : Math.round((correct / total) * 100)) + '%',
-        currentStreak: streak,
-        bestStreak: best,
-        exportTime: new Date().toISOString()
+    const levels = {
+        'Beginner': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4'],
+        'Intermediate': ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'],
+        'Advanced': ['g/3', 'a/3', 'b/3', 'c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5', 'd/5', 'e/5']
     };
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "MelodyFlow_Stats.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-}
+    // --- MIDI CONNECTION LOGIC ---
 
-// Initial draw of the staff (before MIDI connection)
-draw(); 
-updateMidiStatus('pending', 'Click Connect MIDI to begin.');
+    function onMIDISuccess(midiAccess) {
+        const inputCount = Array.from(midiAccess.inputs).length;
+        
+        statusEl.classList.remove('status-pending');
+        connectBtn.style.display = 'none'; // Hide button on successful connection
+
+        if (inputCount === 0) {
+            statusEl.innerText = "Connected, but no MIDI device found.";
+            statusEl.classList.add('status-error');
+            return;
+        }
+
+        statusEl.innerText = `MIDI Connected (${inputCount} device(s))`;
+        statusEl.classList.remove('status-ready'); // Remove old class
+        statusEl.classList.add('status-connected'); // Use new connected class
+
+        for (let input of midiAccess.inputs.values()) {
+            input.onmidimessage = handleMidi;
+        }
+    }
+
+    function onMIDIFailure(error) {
+        statusEl.classList.remove('status-pending');
+        statusEl.innerText = "MIDI Access Denied or Error.";
+        statusEl.classList.add('status-error');
+        connectBtn.style.display = 'inline-block'; // Keep button visible for retry
+        console.error("MIDI Failure:", error);
+    }
+    
+    // This function is now explicitly called by the button click
+    window.connectMidi = function() {
+        if (!navigator.requestMIDIAccess) {
+            statusEl.innerText = "Browser doesn't support MIDI";
+            statusEl.classList.add('status-error');
+            connectBtn.style.display = 'none';
+            return;
+        }
+
+        // Update status to show connection is in progress
+        statusEl.innerText = "Requesting MIDI permission...";
+        statusEl.classList.remove('status-error', 'status-connected');
+        statusEl.classList.add('status-pending');
+        connectBtn.style.display = 'none'; // Hide button temporarily
+
+        // TRICK: Call the API inside this user-initiated function
+        navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    }
+
+
+    function handleMidi(message) {
+        const [command, note, velocity] = message.data;
+        if (command === 144 && velocity > 0) {
+            const played = midiToVex(note);
+            document.getElementById('midi-val').innerText = played.toUpperCase().replace('/', '');
+            
+            if (played === targetNote) {
+                triggerSuccess();
+                pickNewNote();
+            }
+        }
+    }
+
+    function midiToVex(midi) {
+        const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+        const octave = Math.floor(midi / 12) - 1;
+        return `${names[midi % 12]}/${octave}`;
+    }
+
+    // --- GAME LOGIC ---
+
+    function setDiff(lvl) {
+        difficulty = lvl;
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + lvl).classList.add('active');
+        pickNewNote();
+    }
+
+    function pickNewNote() {
+        const pool = levels[difficulty];
+        targetNote = pool[Math.floor(Math.random() * pool.length)];
+        renderNotation();
+    }
+
+    function triggerSuccess() {
+        const card = document.getElementById('app-card');
+        card.classList.remove('correct');
+        void card.offsetWidth; // Trigger reflow
+        card.classList.add('correct');
+        document.getElementById('feedback-text').innerText = "Correct! 🎉";
+        setTimeout(() => {
+            document.getElementById('feedback-text').innerText = "Play the note on the staff";
+        }, 600);
+    }
+
+    function renderNotation() {
+        const div = document.getElementById("notation");
+        div.innerHTML = '';
+        
+        const renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+        renderer.resize(200, 150);
+        const context = renderer.getContext();
+        
+        const stave = new VF.Stave(10, 20, 180);
+        stave.addClef("treble").setContext(context).draw();
+
+        const note = new VF.StaveNote({ keys: [targetNote], duration: "q" });
+        // Handling accidentals: VexFlow expects a # or b in the key string for it to draw the accidental modifier
+        const accidental = targetNote.includes('#') ? '#' : (targetNote.includes('b') ? 'b' : null);
+        if (accidental) note.addModifier(new VF.Accidental(accidental));
+        
+        // Material 3 Purple Color
+        note.setStyle({ fillStyle: "#6750A4", strokeStyle: "#6750A4" });
+
+        const voice = new VF.Voice({num_beats: 1,  beat_value: 4});
+        voice.addTickables([note]);
+
+        new VF.Formatter().joinVoices([voice]).format([voice], 100);
+        voice.draw(context, stave);
+    }
+
+    // --- INITIALIZATION ---
+    
+    // Check for MIDI support right away and show the button if supported.
+    if (navigator.requestMIDIAccess) {
+        connectBtn.style.display = 'inline-block';
+        statusEl.innerText = "Click Connect MIDI";
+    } else {
+        statusEl.innerText = "Web MIDI not supported.";
+        statusEl.classList.add('status-error');
+        connectBtn.style.display = 'none';
+    }
+
+    // Initial Draw
+    pickNewNote(); // Calls renderNotation()
 </script>
-
 </body>
 </html>
